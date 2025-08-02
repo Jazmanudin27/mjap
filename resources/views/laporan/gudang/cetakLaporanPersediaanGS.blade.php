@@ -17,10 +17,13 @@
                 <th rowspan="2">Kode Barang</th>
                 <th rowspan="2">Nama Barang</th>
                 <th rowspan="2">Satuan</th>
+                <th rowspan="2">Jenis</th>
+                <th rowspan="2">Merk</th>
                 <th rowspan="2">Saldo Awal</th>
                 <th colspan="5" class="text-center" style="background-color: #28a745; color: white;">PENERIMAAN</th>
                 <th colspan="4" class="text-center" style="background-color: #dc3545; color: white;">PENGELUARAN</th>
                 <th rowspan="2">Saldo Akhir</th>
+                <th rowspan="2">Conversi</th>
             </tr>
 
             <tr style="background-color: #e3f0ff;">
@@ -43,6 +46,8 @@
                     <td>{{ $item->kode_barang }}</td>
                     <td>{{ $item->nama_barang }}</td>
                     <td>{{ $item->satuan }}</td>
+                    <td>{{ $item->kategori }}</td>
+                    <td>{{ $item->merk }}</td>
                     <td class="text-end">
                         @if ($item->saldo_awal > 0)
                             {{ number_format($item->saldo_awal) }}
@@ -113,6 +118,31 @@
                         @if ($saldoAkhir != 0)
                             {{ number_format($saldoAkhir) }}
                         @endif
+                    </td>
+
+                    <td class="text-start fw-bold">
+                        @php
+                            $saldo = $saldoAkhir;
+                            $konversi = [];
+                            $satuanList = $satuan_barang[$item->kode_barang] ?? collect();
+
+                            foreach ($satuanList as $sat) {
+                                if ($sat->isi > 1) {
+                                    $qty = intdiv($saldo, $sat->isi); // Ambil jumlah satuan besar
+                                    if ($qty > 0) {
+                                        $konversi[] = $qty . ' ' . $sat->satuan;
+                                        $saldo = $saldo % $sat->isi; // Sisa ke satuan kecil
+                                    }
+                                }
+                            }
+
+                            // Sisa satuan kecil (pcs)
+                            if ($saldo > 0) {
+                                $konversi[] = $saldo . ' ' . $item->satuan;
+                            }
+
+                            echo implode(', ', $konversi);
+                        @endphp
                     </td>
                 </tr>
             @endforeach

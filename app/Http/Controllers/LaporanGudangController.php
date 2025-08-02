@@ -90,6 +90,8 @@ class LaporanGudangController extends Controller
             ->select(
                 'barang.kode_barang',
                 'barang.nama_barang',
+                'barang.kategori',
+                'barang.merk',
                 'barang_satuan.satuan',
                 DB::raw('COALESCE(saldo_awal, 0) AS saldo_awal'),
                 // Penerimaan
@@ -126,12 +128,18 @@ class LaporanGudangController extends Controller
 
         $query->orderBy('barang.nama_barang');
         $data['data'] = $query->get();
+        $satuan_barang = DB::table('barang_satuan')
+            ->whereIn('kode_barang', $data['data']->pluck('kode_barang'))
+            ->orderBy('isi', 'desc')
+            ->get()
+            ->groupBy('kode_barang');
 
+        $data['satuan_barang'] = $satuan_barang;
         if ($request->has('export')) {
-            return Excel::download(
-                new LaporanExport('laporan.gudang.cetakLaporanPersediaanGS', $data),
-                'Laporan_Persediaan_GS.xlsx'
-            );
+
+            header("Content-type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            header("Content-Disposition: attachment; filename=Laporan Barang.xls");
+            return view('laporan.gudang.cetakLaporanPersediaanGS', $data);
         }
 
         return view('laporan.gudang.cetakLaporanPersediaanGS', $data);
