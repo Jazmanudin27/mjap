@@ -1,0 +1,67 @@
+<ul class="sidebar-nav" id="sidebar-nav">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url('dashboard') }}">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url('mapsPelanggan') }}">
+            <i class="bi bi-speedometer2"></i>
+            <span>Maping Pelanggan</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url('trackingSales') }}">
+            <i class="bi bi-speedometer2"></i>
+            <span>Tracking Salesman</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link collapsed" data-bs-target="#data-master" data-bs-toggle="collapse" href="#">
+            <i class="bi bi-archive"></i><span>Data Master</span><i class="bi bi-chevron-down ms-auto"></i>
+        </a>
+        <ul id="data-master" class="nav-content collapse" data-bs-parent="#sidebar-nav">
+            <li><a href="{{ url('viewBarang') }}"><i class="bi bi-box-seam"></i><span>Barang</span></a>
+            </li>
+            <li><a href="{{ url('viewPelanggan') }}"><i class="bi bi-people"></i><span>Pelanggan</span></a>
+            </li>
+        </ul>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link collapsed" data-bs-target="#marketing" data-bs-toggle="collapse" href="#">
+            <i class="bi bi-receipt-cutoff"></i><span>Marketing</span><i class="bi bi-chevron-down ms-auto"></i>
+        </a>
+        <ul id="marketing" class="nav-content collapse" data-bs-parent="#sidebar-nav">
+            <li><a href="{{ url('viewPenjualan') }}"><i class="bi bi-basket"></i><span>Penjualan</span></a>
+            </li>
+            <li><a href="{{ url('viewTargetSales') }}"><i class="bi bi-basket"></i><span>Target
+                        Sales</span></a>
+            </li>
+            <li><a href="{{ url('viewKirimanSales') }}"><i class="bi bi-basket"></i><span>Rekap
+                        Kiriman</span></a>
+            </li>
+            <li><a href="{{ url('viewPengajuanLimit') }}"><i class="bi bi-arrow-counterclockwise"></i><span>Pengajuan
+                        Limit</span></a></li>
+            <li><a href="{{ url('viewReturPenjualan') }}"><i class="bi bi-arrow-counterclockwise"></i><span>Retur
+                        Pejualan</span></a></li>
+            <li><a href="{{ url('laporanPenjualan') }}"><i class="bi bi-clipboard-data"></i><span>Laporan
+                    </span></a></li>
+        </ul>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link collapsed" data-bs-target="#keuangan" data-bs-toggle="collapse" href="#">
+            <i class="bi bi-cash-stack"></i><span>Keuangan</span><i class="bi bi-chevron-down ms-auto"></i>
+        </a>
+        <ul id="keuangan" class="nav-content collapse" data-bs-parent="#sidebar-nav">
+            <li><a href="{{ url('viewSetoranPenjualan') }}"><i class="bi bi-wallet2"></i><span>Setoran
+                        Penjualan</span></a></li>
+            <li><a href="{{ url('viewTransfer') }}"><i class="bi bi-wallet2"></i><span>
+                        Transfer</span></a></li>
+            <li><a href="{{ url('viewGiro') }}"><i class="bi bi-wallet2"></i><span>
+                        Giro</span></a></li>
+        </ul>
+    </li>
+</ul>
