@@ -257,7 +257,7 @@
             <li>Faktur asli adalah bukti pembayaran yang sah.</li>
             <li>Barang di mobil jadi tanggung jawab kurir/supir.</li>
             <li>Pembayaran dengan GIRO dianggap lunas setelah cair.</li>
-            <li>Klaim tidak dilayani setelah faktur ditandatangani.</li>
+            <li>Klaim tidak dilayani setelah faktur  ditandatangani.</li>
         </ul>
     </small>
 </body>
