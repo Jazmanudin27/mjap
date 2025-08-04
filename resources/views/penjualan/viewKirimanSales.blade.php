@@ -18,7 +18,7 @@
                                 class="form-control form-control-sm">
                         </div>
                         <div class="col-md-3">
-                            <select name="kode_wilayah" class="form-select form-select-sm select2">
+                            <select name="kode_wilayah" id="kode_wilayah" class="form-select form-select-sm select2">
                                 <option value="">-- Semua Wilayah --</option>
                                 @foreach ($wilayah as $w)
                                     <option value="{{ $w->kode_wilayah }}"
@@ -44,14 +44,12 @@
                         <!-- Tombol Cetak Kiriman Gudang -->
                         <div class="col-md-2 d-grid">
                             <a class="btn btn-sm btn-secondary w-100 d-flex align-items-center justify-content-center gap-1"
-                                href="{{ route('cetakKirimanGudang', request()->except(['_token'])) }}"
-                                target="_blank">
+                                href="{{ route('cetakKirimanGudang', request()->except(['_token'])) }}" target="_blank">
                                 <i class="bi bi-box-seam"></i> Cetak Kiriman Barang
                             </a>
                         </div>
                     </div>
                 </form>
-
 
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered align-middle" id="tabelKiriman">

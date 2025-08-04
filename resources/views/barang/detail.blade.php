@@ -578,6 +578,54 @@
                         $('#formDiskonStarlaReguler').submit();
                     }
                 });
+
+                $('#updateBarang').on('click', function() {
+                    let updateUrl = '{{ route('updateBarang') }}'; // BENAR
+
+                    let data = {
+                        kode_barang: $('#kode_barang').val(),
+                        nama_barang: $('#nama_barang').val(),
+                        jenis: $('#jenis').val(),
+                        merk: $('#merk').val(),
+                        stok_min: $('#stok_min').val(),
+                        kode_supplier: $('#kode_supplier').val(),
+                        keterangan: $('#keterangan').val(),
+                        status: $('#status').val(),
+                        _token: '{{ csrf_token() }}'
+                    };
+
+                    $.ajax({
+                        url: updateUrl,
+                        method: 'POST',
+                        data: data,
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Berhasil!',
+                                    text: response.message,
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal!',
+                                    text: 'Terjadi kesalahan saat update.'
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: 'Gagal mengupdate data.'
+                            });
+                        }
+                    });
+                });
+
+
             });
         </script>
     @endsection

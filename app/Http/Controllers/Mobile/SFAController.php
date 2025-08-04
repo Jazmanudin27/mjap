@@ -22,13 +22,16 @@ class SFAController extends Controller
         $nik = Auth::user()->nik;
 
         if (in_array($role, ['admin', 'owner'])) {
-            $salesList = DB::table('users')->pluck('nik');
+            $salesList = DB::table('users')->where('team','!=','')->pluck('nik');
         } elseif ($role === 'spv sales') {
             $salesList = DB::table('users')->where('team', $nik)->pluck('nik');
         } else {
             $salesList = [$nik];
         }
-
+        $data['salesOptions'] = DB::table('users')
+            ->whereIn('nik', $salesList)
+            ->select('nik', 'name')
+            ->get();
         $data['penjualanHariIni'] = DB::table('penjualan')
             ->whereDate('tanggal', $today)
             ->where('batal', 0)
@@ -60,8 +63,9 @@ class SFAController extends Controller
             ->select('penjualan.*', 'pelanggan.nama_pelanggan as nama_pelanggan')
             ->whereMonth('penjualan.tanggal', Date('m'))
             ->whereIn('penjualan.kode_sales', $salesList)
+
             ->orderBy('penjualan.tanggal', 'desc')
-            ->limit(20)
+            ->limit(100)
             ->get();
 
         $data['activity'] = DB::table('penjualan_checkin')
@@ -265,14 +269,15 @@ class SFAController extends Controller
     {
         $dari = $request->input('dari');
         $sampai = $request->input('sampai');
+        $filterSales = $request->input('sales');
+
         $user = Auth::user();
-        $kodeSales = $user->nik;
         $userRole = $user->role;
-        $userTeam = $user->team;
+        $userNik = $user->nik;
 
         $history = DB::table('penjualan')
             ->join('pelanggan', 'penjualan.kode_pelanggan', '=', 'pelanggan.kode_pelanggan')
-            ->join('hrd_karyawan', 'penjualan.kode_sales', '=', 'hrd_karyawan.nik') // <- JOIN ke hrd_karyawan
+            ->join('hrd_karyawan', 'penjualan.kode_sales', '=', 'hrd_karyawan.nik')
             ->select(
                 'penjualan.*',
                 'pelanggan.nama_pelanggan as nama_pelanggan',
@@ -280,10 +285,13 @@ class SFAController extends Controller
             )
             ->whereBetween('penjualan.tanggal', [$dari, $sampai]);
 
-        if ($userRole === 'sales') {
-            $history->where('penjualan.kode_sales', $kodeSales);
-        } elseif ($userRole === 'spv sales') {
-            $history->where('hrd_karyawan.divisi', $kodeSales);
+        // Apply filter berdasarkan Role:
+        if ($userRole == 'sales') {
+            $history->where('penjualan.kode_sales', $userNik);
+        } else {
+            if ($filterSales) {
+                $history->where('penjualan.kode_sales', $filterSales);
+            }
         }
 
         $history = $history->orderBy('penjualan.tanggal', 'desc')->get();
@@ -365,7 +373,7 @@ class SFAController extends Controller
                 'updated_at' => now(),
             ]);
 
-        return redirect()->back()->with('success', 'Check-out berhasil.');
+        return redirect('mobile/viewPelangganMobile')->with('success', 'Check-out berhasil.');
     }
 
     public function viewDetailPelangganMobile($kode_pelanggan)
@@ -750,15 +758,21 @@ class SFAController extends Controller
 
     public function storePelangganMobile(Request $request)
     {
-        $tahunBulan = date('y') . date('m');
+        $prefix = "PLG";
+
         $lastPelanggan = DB::table('pelanggan')
-            ->where('kode_pelanggan', 'LIKE', "PLG$tahunBulan%")
+            ->where('kode_pelanggan', 'LIKE', "$prefix%")
             ->orderBy('kode_pelanggan', 'desc')
             ->first();
 
-        $nomorUrut = $lastPelanggan ? ((int) substr($lastPelanggan->kode_pelanggan, -3) + 1) : 1;
-        $kodePelanggan = "PLG$tahunBulan" . str_pad($nomorUrut, 3, '0', STR_PAD_LEFT);
+        if ($lastPelanggan) {
+            $lastUrut = (int) substr($lastPelanggan->kode_pelanggan, strlen($prefix));
+            $nomorUrut = $lastUrut + 1;
+        } else {
+            $nomorUrut = 1;
+        }
 
+        $kodePelanggan = $prefix . str_pad($nomorUrut, 7, '0', STR_PAD_LEFT);
         $simpan = DB::table('pelanggan')->insert([
             'kode_pelanggan' => $kodePelanggan,
             'tanggal_register' => now()->toDateString(),

@@ -85,9 +85,13 @@
                 <th>No. Faktur</th>
                 <th>Kode</th>
                 <th>Nama Pelanggan</th>
+                <th>Alamat</th>
+                <th>Wilayah</th>
                 <th>Sales</th>
                 <th>Kode Barang</th>
                 <th>Nama Barang</th>
+                <th>Jenis</th>
+                <th>Merk</th>
                 <th>Qty</th>
                 <th>Satuan</th>
                 <th>Harga</th>
@@ -115,7 +119,7 @@
             @endphp
 
             @forelse($data as $d)
-                @foreach($d->detail as $item)
+                @foreach ($d->detail as $item)
                     @php
                         $isNewFaktur = $d->no_faktur !== $prevFaktur;
                         if ($isNewFaktur) {
@@ -131,7 +135,9 @@
                             }
                         }
 
-                        $batalStyle = $d->batal ? 'background-color: rgba(255,0,0,0.1); color:#a00; text-decoration: line-through;' : '';
+                        $batalStyle = $d->batal
+                            ? 'background-color: rgba(255,0,0,0.1); color:#a00; text-decoration: line-through;'
+                            : '';
                         $promoStyle = $item->is_promo == '1' ? 'background-color: #FF7F00;' : '';
                     @endphp
                     <tr style="background-color: {{ $rowColor }}; {{ $batalStyle }}">
@@ -140,20 +146,29 @@
                         <td class="text-center">{{ $d->no_faktur }}</td>
                         <td class="text-center">{{ $d->kode_pelanggan }}</td>
                         <td>{{ $d->nama_pelanggan }}</td>
+                        <td>{{ $d->alamat_toko }}</td>
+                        <td>{{ $d->nama_wilayah }}</td>
                         <td>{{ $d->sales }}</td>
 
                         <td style="{{ $promoStyle }}">{{ $item->kode_barang }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->nama_barang }}</td>
+                        <td style="{{ $promoStyle }}">{{ $item->kategori }}</td>
+                        <td style="{{ $promoStyle }}">{{ $item->merk }}</td>
                         <td class="text-end" style="{{ $promoStyle }}">{{ $item->qty }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->satuan }}</td>
-                        <td class="text-end" style="{{ $promoStyle }}">{{ rupiah($item->harga) }}</td>
-                        <td class="text-center" style="{{ $promoStyle }}">{{ $item->diskon1_persen }}</td>
-                        <td class="text-center" style="{{ $promoStyle }}">{{ $item->diskon2_persen }}</td>
-                        <td class="text-center" style="{{ $promoStyle }}">{{ $item->diskon3_persen }}</td>
-                        <td class="text-center" style="{{ $promoStyle }}">{{ $item->diskon4_persen }}</td>
-                        <td class="text-end" style="{{ $promoStyle }}">{{ rupiah($item->total) }}</td>
-                        <td class="text-end text-success">{{ rupiah($d->sudah_bayar) }}</td>
-                        <td class="text-end text-danger">{{ rupiah($d->sisa) }}</td>
+                        <td class="text-end" style="{{ $promoStyle }}">{{ formatAngka($item->harga) }}</td>
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon1_persen > 0 ? number_format($item->diskon1_persen, 2) : '' }}</td>
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon2_persen > 0 ? number_format($item->diskon2_persen, 2) : '' }}</td>
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon3_persen > 0 ? number_format($item->diskon3_persen, 2) : '' }}</td>
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon4_persen > 0 ? number_format($item->diskon4_persen, 2) : '' }}</td>
+
+                        <td class="text-end" style="{{ $promoStyle }}">{{ formatAngka($item->total) }}</td>
+                        <td class="text-end text-success">{{ formatAngka($d->sudah_bayar) }}</td>
+                        <td class="text-end text-danger">{{ formatAngka($d->sisa) }}</td>
                         <td class="text-center fw-bold"
                             style="{{ $d->status == 'Batal' ? 'color:red;' : ($d->status == 'Lunas' ? 'color:green;' : '') }}">
                             {{ $d->status }}
@@ -175,22 +190,22 @@
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="16" class="text-end">TOTAL</td>
-                <td class="text-end">{{ rupiah($totalAll) }}</td>
-                <td class="text-end">{{ rupiah($diskonAll) }}</td>
-                <td class="text-end">{{ rupiah($grandAll) }}</td>
-                <td class="text-end">{{ rupiah($bayarAll) }}</td>
-                <td class="text-end">{{ rupiah($sisaAll) }}</td>
+                <td colspan="17" class="text-end">TOTAL</td>
+                <td class="text-end">{{ formatAngka($totalAll) }}</td>
+                <td class="text-end">{{ formatAngka($diskonAll) }}</td>
+                <td class="text-end">{{ formatAngka($grandAll) }}</td>
+                <td class="text-end">{{ formatAngka($bayarAll) }}</td>
+                <td class="text-end">{{ formatAngka($sisaAll) }}</td>
                 <td colspan="5"></td>
             </tr>
-            @if($totalBatal > 0)
+            @if ($totalBatal > 0)
                 <tr style="background:#ffe3e3;">
-                    <td colspan="16" class="text-end text-danger fw-bold">TOTAL FAKTUR BATAL</td>
-                    <td class="text-end text-danger fw-bold">{{ rupiah($totalBatal) }}</td>
-                    <td class="text-end text-danger fw-bold">{{ rupiah($diskonBatal) }}</td>
-                    <td class="text-end text-danger fw-bold">{{ rupiah($grandBatal) }}</td>
-                    <td class="text-end text-danger fw-bold">{{ rupiah($bayarBatal) }}</td>
-                    <td class="text-end text-danger fw-bold">{{ rupiah($sisaBatal) }}</td>
+                    <td colspan="17" class="text-end text-danger fw-bold">TOTAL FAKTUR BATAL</td>
+                    <td class="text-end text-danger fw-bold">{{ formatAngka($totalBatal) }}</td>
+                    <td class="text-end text-danger fw-bold">{{ formatAngka($diskonBatal) }}</td>
+                    <td class="text-end text-danger fw-bold">{{ formatAngka($grandBatal) }}</td>
+                    <td class="text-end text-danger fw-bold">{{ formatAngka($bayarBatal) }}</td>
+                    <td class="text-end text-danger fw-bold">{{ formatAngka($sisaBatal) }}</td>
                     <td colspan="5"></td>
                 </tr>
             @endif

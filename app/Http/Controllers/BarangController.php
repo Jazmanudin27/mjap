@@ -113,8 +113,9 @@ class BarangController extends Controller
         $query->when($request->jenis, fn($q, $v) => $q->where('barang.jenis', $v));
         if ($request->filled('status')) {
             $query->where('barang.status', $request->status);
+        } else {
+            $query->where('barang.status', 1); // Default: aktif
         }
-
         $data['barang'] = $query->orderBy('barang.nama_barang')
             ->paginate(10)
             ->appends(request()->query());
@@ -188,7 +189,7 @@ class BarangController extends Controller
             ->get();
 
         $data['diskon'] = DB::table('diskon_strata')
-            ->select('diskon_strata.*', 'diskon_strata.id', 'barang_satuan.harga_jual','barang_satuan.satuan')
+            ->select('diskon_strata.*', 'diskon_strata.id', 'barang_satuan.harga_jual', 'barang_satuan.satuan')
             ->leftJoin('barang_satuan', 'barang_satuan.id', 'diskon_strata.satuan_id')
             ->where('diskon_strata.kode_barang', $id)
             ->where('diskon_strata.jenis_diskon', 'promo')
@@ -197,7 +198,7 @@ class BarangController extends Controller
             ->appends(request()->query());
 
         $data['diskonReguler'] = DB::table('diskon_strata')
-            ->select('diskon_strata.*', 'diskon_strata.id', 'barang_satuan.harga_jual','barang_satuan.satuan')
+            ->select('diskon_strata.*', 'diskon_strata.id', 'barang_satuan.harga_jual', 'barang_satuan.satuan')
             ->leftJoin('barang_satuan', 'barang_satuan.id', 'diskon_strata.satuan_id')
             ->where('diskon_strata.kode_barang', $id)
             ->where('diskon_strata.jenis_diskon', 'reguler')
@@ -222,22 +223,28 @@ class BarangController extends Controller
 
     public function update(Request $request)
     {
-        $update = DB::table('barang')
-            ->where('kode_barang', $request->kode_barang)
-            ->update([
-                'nama_barang' => $request->nama_barang,
-                'keterangan' => $request->keterangan,
-                'jenis' => $request->jenis,
-                'stok_min' => $request->stok_min,
-                'kode_supplier' => $request->kode_supplier,
-                'status' => $request->status,
-                'updated_at' => now(),
-            ]);
-        if ($update) {
-            logActivity('Update Barang', 'Barang ' . $request->nama_barang . ' diupdate');
-            return Redirect('viewBarang')->with(['success' => 'Data Berhasil Diupdate']);
-        } else {
-            return Redirect('viewBarang')->with(['warning' => 'Data Gagal Diupdate']);
+        try {
+            DB::table('barang')
+                ->where('kode_barang', $request->kode_barang)
+                ->update([
+                    'nama_barang' => $request->nama_barang,
+                    'kategori' => $request->jenis,
+                    'merk' => $request->merk,
+                    'stok_min' => $request->stok_min,
+                    'kode_supplier' => $request->kode_supplier,
+                    'keterangan' => $request->keterangan,
+                    'status' => $request->status,
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Barang berhasil diupdate.'
+            ], 200); // PAKSA STATUS 200
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
     }
     private function authorizePermission($permission)

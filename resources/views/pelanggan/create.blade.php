@@ -90,11 +90,11 @@
                                 <select name="frekuensi_kunjungan"
                                     class="form-select form-select-sm rounded-pill shadow-sm">
                                     <option value="" disabled selected>-- Pilih Frekuensi --</option>
-                                    <option value="mingguan"
-                                        {{ old('frekuensi_kunjungan', $pelanggan->frekuensi_kunjungan ?? '') == 'mingguan' ? 'selected' : '' }}>
+                                    <option value="1"
+                                        {{ old('frekuensi_kunjungan', $pelanggan->frekuensi_kunjungan ?? '') == '1' ? 'selected' : '' }}>
                                         Mingguan</option>
-                                    <option value="dua_mingguan"
-                                        {{ old('frekuensi_kunjungan', $pelanggan->frekuensi_kunjungan ?? '') == 'dua_mingguan' ? 'selected' : '' }}>
+                                    <option value="2"
+                                        {{ old('frekuensi_kunjungan', $pelanggan->frekuensi_kunjungan ?? '') == '2' ? 'selected' : '' }}>
                                         2 Minggu
                                         Sekali</option>
                                 </select>
@@ -117,7 +117,7 @@
                                     <i class="bi bi-image me-1"></i> Upload Foto
                                 </label>
                                 <input type="file" name="foto"
-                                    class="form-control form-control-sm rounded-pill shadow-sm" id="foto" required
+                                    class="form-control form-control-sm rounded-pill shadow-sm" id="foto"
                                     onchange="previewImage(event)">
                             </div>
 
@@ -125,6 +125,20 @@
                             <div class="col-md-6 text-center">
                                 <img id="preview" src="" alt="Preview Foto" class="img-thumbnail mt-2"
                                     style="max-width: 150px; display: none;">
+                            </div>
+
+
+                            {{-- Kepemilikan --}}
+                            <div class="col-md-12">
+                                <label class="form-label fw-semibold text-primary">
+                                    <i class="bi bi-house-door me-1"></i> Wilayah
+                                </label>
+                                <select name="wilayah" class="form-select form-select2 form-select-sm" required>
+                                    <option value="">Pilih Wilayah</option>
+                                    @foreach ($wilayahList as $kode => $nama)
+                                        <option value="{{ $kode }}">{{ $nama }}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             {{-- Tombol Submit --}}

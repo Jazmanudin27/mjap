@@ -613,14 +613,13 @@
                     if (diskonPromo) {
                         const persen = parseFloat(diskonPromo.persentase) || 0;
                         const nominal = (persen / 100) * totalNominal;
-                        $('#diskon2_persen').val(persen);
-                        $('#diskon2_nominal').val(formatRupiah(nominal));
+                        $('#diskon1_persen').val(persen);
+                        $('#diskon1_nominal').val(formatRupiah(nominal));
                     } else {
-                        $('#diskon2_persen').val(0);
-                        $('#diskon2_nominal').val(formatRupiah(0));
+                        $('#diskon1_persen').val(0);
+                        $('#diskon1_nominal').val(formatRupiah(0));
                     }
 
-                    // --- Cash (D3)
                     if (diskonCash) {
                         const persen = parseFloat(diskonCash.cash) || 0;
                         let nominal = (persen / 100) * totalNominal;
@@ -631,11 +630,11 @@
                             nominal = 0;
                         }
 
-                        $('#diskon3_persen').val(persen);
-                        $('#diskon3_nominal').val(formatRupiah(nominal));
+                        $('#diskon2_persen').val(persen);
+                        $('#diskon2_nominal').val(formatRupiah(nominal));
                     } else {
-                        $('#diskon3_persen').val(0);
-                        $('#diskon3_nominal').val(formatRupiah(0));
+                        $('#diskon2_persen').val(0);
+                        $('#diskon2_nominal').val(formatRupiah(0));
                     }
 
                     hitungTotal();

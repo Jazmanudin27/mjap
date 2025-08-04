@@ -61,6 +61,25 @@ if (!function_exists('rupiah')) {
     }
 }
 
+if (!function_exists('formatAngka')) {
+    function formatAngka($nilai)
+    {
+        if (!empty($nilai)) {
+            return number_format($nilai, '0', ',', '.');
+        }
+    }
+}
+
+
+if (!function_exists('formatAngkaDesimal')) {
+    function formatAngkaDesimal($nilai)
+    {
+        if (!empty($nilai)) {
+            return number_format($nilai, '2', ',', '.');
+        }
+    }
+}
+
 if (!function_exists('isPeriodeTertutup')) {
     function isPeriodeTertutup($periode, $kategori)
     {
@@ -186,6 +205,24 @@ if (!function_exists('getSales')) {
         }
 
         return $query->orderBy('nama_lengkap')->get();
+    }
+}
+
+if (!function_exists('konversiQtySatuan')) {
+    function konversiQtySatuan($qty, $satuanList)
+    {
+        $result = [];
+        foreach ($satuanList as $s) {
+            $jumlah = floor($qty / $s->isi);
+            if ($jumlah > 0) {
+                $result[] = $jumlah . ' ' . $s->satuan;
+                $qty -= $jumlah * $s->isi;
+            }
+        }
+        if ($qty > 0) {
+            $result[] = $qty . ' PCS'; // PCS = satuan terkecil
+        }
+        return implode(', ', $result);
     }
 }
 

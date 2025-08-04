@@ -6,6 +6,18 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link" href="{{ url('mapsPelanggan') }}">
+            <i class="bi bi-speedometer2"></i>
+            <span>Maping Pelanggan</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url('trackingSales') }}">
+            <i class="bi bi-speedometer2"></i>
+            <span>Tracking Salesman</span>
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link collapsed" data-bs-target="#data-master" data-bs-toggle="collapse" href="#">
             <i class="bi bi-archive"></i><span>Data Master</span><i class="bi bi-chevron-down ms-auto"></i>
         </a>

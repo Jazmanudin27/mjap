@@ -34,8 +34,8 @@ class LaporanPenjualanController extends Controller
 
     public function cetaklaporanPenjualan(Request $request)
     {
-        $mulai = $request->mulai ?? now()->startOfMonth();
-        $akhir = $request->akhir ?? now();
+        $mulai = $request->tanggal_dari ?? now()->startOfMonth();
+        $akhir = $request->tanggal_sampai ?? now();
         $user = Auth::user();
 
         $subPembayaran = DB::table('penjualan_pembayaran')
@@ -56,6 +56,7 @@ class LaporanPenjualanController extends Controller
                 p.jenis_transaksi,
                 pl.kode_pelanggan,
                 pl.nama_pelanggan,
+                pl.alamat_toko,
                 w.nama_wilayah,
                 s.nama_lengkap as sales,
                 k.nama_lengkap as penginput,
@@ -84,15 +85,10 @@ class LaporanPenjualanController extends Controller
             ->when($request->filled('jenis_transaksi'), fn($q) => $q->where('p.jenis_transaksi', $request->jenis_transaksi))
             ->when($request->filled('kode_pelanggan'), fn($q) => $q->where('p.kode_pelanggan', $request->kode_pelanggan))
             ->when($request->filled('salesman'), function ($q) use ($request) {
-                if (str_starts_with($request->salesman, 'team_')) {
-                    $team = str_replace('team_', '', $request->salesman);
-                    $q->where('s.divisi', $team);
-                } else {
-                    $q->where('p.kode_sales', $request->salesman);
-                }
+                $q->where('p.kode_sales', $request->salesman);
             })
             ->when($user->role == 'spv sales' && !$request->filled('salesman'), function ($q) use ($user) {
-                $q->where('s.divisi', $user->team);
+                $q->where('s.divisi', $user->nik);
             })
             ->whereBetween('p.tanggal', [$mulai, $akhir])
             ->orderBy('p.tanggal')
@@ -104,7 +100,7 @@ class LaporanPenjualanController extends Controller
             ->join('barang_satuan as bs', 'bs.id', '=', 'pd.satuan_id')
             ->join('barang as b', 'b.kode_barang', '=', 'bs.kode_barang')
             ->whereIn('pd.no_faktur', $fakturList)
-            ->select('pd.*', 'bs.kode_barang', 'b.nama_barang', 'bs.satuan', 'pd.is_promo')
+            ->select('pd.*', 'bs.kode_barang', 'b.nama_barang', 'bs.satuan', 'b.jenis', 'b.merk', 'b.kategori', 'pd.is_promo')
             ->get()
             ->groupBy('no_faktur');
 

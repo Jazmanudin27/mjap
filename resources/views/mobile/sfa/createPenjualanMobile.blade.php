@@ -169,29 +169,49 @@
                         </div>
                     </div>
 
-                    <div class="row g-2" hidden>
-                        <div class="col-3">
-                            <label class="form-label small mb-0">Diskon %1</label>
-                            <input type="text" id="diskon1" name="diskon1"
-                                class="form-control form-control-sm text-end" placeholder="0%">
+                    <div class="row align-items-center mb-2 mt-1" hidden>
+                        <div class="col-2">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">D1</span>
+                                <input type="text" id="diskon1_nominal" placeholder="Rp. 0"
+                                    class="form-control text-end">
+                            </div>
                         </div>
-                        <div class="col-3">
-                            <label class="form-label small mb-0">Diskon %2</label>
-                            <input type="text" id="diskon2" name="diskon2"
-                                class="form-control form-control-sm text-end" placeholder="0%">
+                        <div class="col-1">
+                            <input type="text" id="diskon1_persen" placeholder="%" class="form-control text-end">
                         </div>
-                        <div class="col-3 mt-2">
-                            <label class="form-label small mb-0">Diskon %3</label>
-                            <input type="text" id="diskon3" name="diskon3"
-                                class="form-control form-control-sm text-end" placeholder="0%">
+                        <div class="col-2">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">D2</span>
+                                <input type="text" id="diskon2_nominal" placeholder="Rp. 0"
+                                    class="form-control text-end">
+                            </div>
                         </div>
-                        <div class="col-3 mt-2">
-                            <label class="form-label small mb-0">Diskon %4</label>
-                            <input type="text" id="diskon4" name="diskon4"
-                                class="form-control form-control-sm text-end" placeholder="0%">
+                        <div class="col-1">
+                            <input type="text" id="diskon2_persen" placeholder="%" class="form-control text-end">
+                        </div>
+                        <div class="col-2">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">D3</span>
+                                <input type="text" id="diskon3_nominal" placeholder="Rp. 0"
+                                    class="form-control text-end">
+                            </div>
+                        </div>
+                        <div class="col-1">
+                            <input type="text" id="diskon3_persen" placeholder="%" class="form-control text-end">
+                        </div>
+                        <div class="col-2">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">D4</span>
+                                <input type="text" id="diskon4_nominal" placeholder="Rp. 0"
+                                    class="form-control text-end">
+                            </div>
+                        </div>
+                        <div class="col-1">
+                            <input type="text" id="diskon4_persen" placeholder="%"
+                                class="form-control form-control-sm text-end">
                         </div>
                     </div>
-
                     <div class="d-grid mt-4">
                         <button type="button" class="btn btn-sm btn-primary rounded-3" id="btnTambahProduk">
                             <i class="bi bi-plus-circle me-1"></i> Tambah Data
@@ -340,7 +360,6 @@
                 });
 
                 if (val === 'K') {
-                    // ✅ Cek Limit Kredit Global
                     if (totalTransaksi > limitKredit) {
                         Swal.fire({
                             icon: 'warning',
@@ -354,7 +373,6 @@
                         return;
                     }
 
-                    // ✅ Cek Faktur Belum Lunas (Warning Info Saja)
                     if (fakturBelumLunas >= maxFaktur) {
                         Swal.fire({
                             icon: 'info',
@@ -366,7 +384,6 @@
                         // Tidak ada return, tetap lanjut
                     }
 
-                    // ✅ Cek Limit Supplier
                     let supplierTotals = {};
 
                     keranjang.forEach(item => {
@@ -598,57 +615,93 @@
                 $('#grandTotalInput').val(grandTotal);
             }
 
-            function hitungDiskonReguler(qty) {
-                const kode_barang = $('#kode_barang').val();
+            function hitungDiskonStrata(kode_barang, qty) {
                 const hargaSatuan = parseRupiah($('#harga_jual').val());
                 const totalNominal = qty * hargaSatuan;
 
-                if (!kode_barang || qty <= 0) {
-                    setDiskon(0, 0);
-                    hitungTotal();
-                    return;
-                }
-                $.when(
-                    $.getJSON(`/getDiskonStrata/${kode_barang}/${qty}/qty`),
-                    $.getJSON(`/getDiskonStrata/${kode_barang}/${totalNominal}/nominal`)
-                ).done(function(dq, dn) {
-                    const diskonQty = dq[0];
-                    const diskonNominal = dn[0];
-                    const diskon = pilihDiskonTerbaik(diskonQty, diskonNominal);
-                    if (diskon) {
-                        const persen = parseFloat(diskon.persentase) || 0;
-                        const tipe = (diskon.tipe_syarat || '').trim();
-                        const basis = tipe === 'qty' ? hargaSatuan : totalNominal;
-                        const nominal = hitungDiskonNominal(persen, basis);
+                $.getJSON(`/getDiskonStrataSemua/${kode_barang}/${qty}/${totalNominal}`, function(response) {
+                    let diskonRegulerQty = null;
+                    let diskonRegulerNominal = null;
+                    let diskonPromo = null;
+                    let diskonCash = null;
 
-                        setDiskon(persen, nominal);
+                    response.forEach(diskon => {
+                        if (diskon.jenis_diskon === 'reguler') {
+                            if (diskon.tipe_syarat === 'qty') {
+                                if (!diskonRegulerQty || diskon.persentase > diskonRegulerQty
+                                    .persentase) {
+                                    diskonRegulerQty = diskon;
+                                }
+                            } else if (diskon.tipe_syarat === 'nominal') {
+                                if (!diskonRegulerNominal || diskon.persentase >
+                                    diskonRegulerNominal.persentase) {
+                                    diskonRegulerNominal = diskon;
+                                }
+                            }
+                        }
+
+                        if (diskon.jenis_diskon === 'promo') {
+                            if (!diskonPromo || diskon.persentase > diskonPromo.persentase) {
+                                diskonPromo = diskon;
+                            }
+                        }
+
+                        if (diskon.cash != 0) {
+                            if (!diskonCash || diskon.cash > diskonCash.cash) {
+                                diskonCash = diskon;
+                            }
+                        }
+                    });
+
+                    // --- Pilih reguler terbaik (qty vs nominal)
+                    const diskonReguler = pilihDiskonTerbaik(diskonRegulerQty, diskonRegulerNominal);
+                    if (diskonReguler) {
+                        const persen = parseFloat(diskonReguler.persentase) || 0;
+                        const nominal = (persen / 100) * totalNominal;
+                        $('#diskon1_persen').val(persen);
+                        $('#diskon1_nominal').val(formatRupiah(nominal));
                     } else {
-                        setDiskon(0, 0);
+                        $('#diskon1_persen').val(0);
+                        $('#diskon1_nominal').val(formatRupiah(0));
                     }
 
-                    hitungTotal();
-                }).fail(function() {
-                    console.warn('Gagal ambil diskon');
-                    setDiskon(0, 0);
+                    if (diskonPromo) {
+                        const persen = parseFloat(diskonPromo.persentase) || 0;
+                        const nominal = (persen / 100) * totalNominal;
+                        $('#diskon1_persen').val(persen);
+                        $('#diskon1_nominal').val(formatRupiah(nominal));
+                    } else {
+                        $('#diskon1_persen').val(0);
+                        $('#diskon1_nominal').val(formatRupiah(0));
+                    }
+
+                    // --- Cash (D3)
+                    if (diskonCash) {
+                        const persen = parseFloat(diskonCash.cash) || 0;
+                        let nominal = (persen / 100) * totalNominal;
+
+                        const jenisTransaksi = $('#jenis_transaksi').val();
+                        if (jenisTransaksi !== 'T') {
+                            persen = 0;
+                            nominal = 0;
+                        }
+
+                        $('#diskon2_persen').val(persen);
+                        $('#diskon2_nominal').val(formatRupiah(nominal));
+                    } else {
+                        $('#diskon2_persen').val(0);
+                        $('#diskon2_nominal').val(formatRupiah(0));
+                    }
+
                     hitungTotal();
                 });
             }
 
-            function fetchDiskonStrata(kodeBarang, qty, subtotal) {
-                return $.when(
-                    $.getJSON(`/getDiskonStrata/${kodeBarang}/${qty}/qty`),
-                    $.getJSON(`/getDiskonStrata/${kodeBarang}/${subtotal}/nominal`)
-                ).then(function(dq, dn) {
-                    const dQty = dq[0];
-                    const dNominal = dn[0];
-                    const terbaik = pilihDiskonTerbaik(dQty, dNominal);
-                    return terbaik ? parseFloat(terbaik.persentase) || 0 : 0;
-                }).catch(() => 0);
-            }
+            $('#jumlah, #jenis_transaksi').on('input change', function() {
+                const qty = parseInt($('#jumlah').val()) || 0;
+                const kode_barang = $('#kode_barang').val();
 
-            $('#jumlah').on('input', function() {
-                const qty = parseInt($(this).val()) || 0;
-                hitungDiskonReguler(qty);
+                hitungDiskonStrata(kode_barang, qty);
             });
 
             let keranjang = JSON.parse(localStorage.getItem('keranjangInput') || '[]');

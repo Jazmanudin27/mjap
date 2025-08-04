@@ -93,19 +93,30 @@ class PelangganController extends Controller
 
     public function create()
     {
-        return view('pelanggan.create');
+        $data['wilayahList'] = DB::table('wilayah')
+            ->pluck('nama_wilayah', 'wilayah.kode_wilayah')
+            ->toArray();
+
+        return view('pelanggan.create', $data);
     }
 
     public function store(Request $request)
     {
-        $tahunBulan = date('y') . date('m');
+        $prefix = "PLG";
+
         $lastPelanggan = DB::table('pelanggan')
-            ->where('kode_pelanggan', 'LIKE', "PLG$tahunBulan%")
+            ->where('kode_pelanggan', 'LIKE', "$prefix%")
             ->orderBy('kode_pelanggan', 'desc')
             ->first();
 
-        $nomorUrut = $lastPelanggan ? ((int) substr($lastPelanggan->kode_pelanggan, -3) + 1) : 1;
-        $kodePelanggan = "PLG$tahunBulan" . str_pad($nomorUrut, 3, '0', STR_PAD_LEFT);
+        if ($lastPelanggan) {
+            $lastUrut = (int) substr($lastPelanggan->kode_pelanggan, strlen($prefix));
+            $nomorUrut = $lastUrut + 1;
+        } else {
+            $nomorUrut = 1;
+        }
+
+        $kodePelanggan = $prefix . str_pad($nomorUrut, 7, '0', STR_PAD_LEFT);
 
         if ($request->hasFile('foto')) {
             $file = $request->file('foto');
@@ -123,6 +134,7 @@ class PelangganController extends Controller
             'alamat_pelanggan' => $request->alamat_pelanggan,
             'alamat_toko' => $request->alamat_toko,
             'no_hp_pelanggan' => $request->no_hp_pelanggan,
+            'kode_wilayah' => $request->wilayah,
             'limit_pelanggan' => $request->limit_pelanggan,
             'hari' => $request->hari,
             'kunjungan' => $request->kunjungan,
@@ -156,6 +168,9 @@ class PelangganController extends Controller
 
     public function detail($id)
     {
+        $data['wilayahList'] = DB::table('wilayah')
+            ->pluck('nama_wilayah', 'wilayah.kode_wilayah')
+            ->toArray();
         $data['pelanggan'] = DB::table('pelanggan')->where('pelanggan.kode_pelanggan', $id)->first();
         return view('pelanggan.detail', $data);
     }
@@ -165,10 +180,14 @@ class PelangganController extends Controller
         $data = [
             'nama_pelanggan' => $request->nama_pelanggan,
             'alamat_pelanggan' => $request->alamat_pelanggan,
+            'alamat_toko' => $request->alamat_toko,
             'no_hp_pelanggan' => $request->no_hp_pelanggan,
-            'kepemilikan' => $request->kepemilikan,
-            'omset_toko' => $request->omset_toko,
+            'kode_wilayah' => $request->wilayah,
             'limit_pelanggan' => $request->limit_pelanggan,
+            'hari' => $request->hari,
+            'kunjungan' => $request->kunjungan,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
             'status' => $request->status,
             'updated_at' => now(),
         ];

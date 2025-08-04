@@ -137,11 +137,13 @@
                                             </td>
                                             <td class="text-start">
                                                 <a href="{{ route('detailPenjualan', $p->no_faktur) }}"
-                                                    class="btn btn-sm btn-success"><i class="fa fa-list"></i></a>
+                                                    class="btn btn-sm btn-success">
+                                                    <i class="fa fa-list"></i>
+                                                </a>
+
                                                 <a href="{{ route('cetakFaktur1', $p->no_faktur) }}"
                                                     class="btn btn-sm btn-primary position-relative" target="_blank">
                                                     <i class="fa fa-print"></i>
-
                                                     @if ($p->cetak > 0)
                                                         <span
                                                             class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
@@ -149,17 +151,21 @@
                                                         </span>
                                                     @endif
                                                 </a>
-                                                @if ($p->batal != '1')
+
+                                                {{-- @if ($p->batal != '1' && !$p->tanggal_kirim) --}}
                                                     <a href="#" class="btn btn-sm btn-danger batalPenjualan"
                                                         data-no="{{ $p->no_faktur }}">
                                                         <i class="fa fa-ban"></i>
                                                     </a>
-                                                @endif
-                                                <a href="#" class="btn btn-sm btn-danger deletePenjualan"
-                                                    data-href="{{ route('deletePenjualan', $p->no_faktur) }}"><i
-                                                        class="fa fa-trash"></i></a>
-                                                <a href="{{ route('editPenjualan', $p->no_faktur) }}"
-                                                    class="btn btn-sm btn-warning"><i class="fa fa-pencil"></i></a>
+                                                    <a href="#" class="btn btn-sm btn-danger deletePenjualan"
+                                                        data-href="{{ route('deletePenjualan', $p->no_faktur) }}">
+                                                        <i class="fa fa-trash"></i>
+                                                    </a>
+                                                    <a href="{{ route('editPenjualan', $p->no_faktur) }}?{{ request()->getQueryString() }}"
+                                                        class="btn btn-sm btn-warning">
+                                                        <i class="fa fa-pencil"></i>
+                                                    </a>
+                                                {{-- @endif --}}
                                             </td>
                                         </tr>
                                     @empty

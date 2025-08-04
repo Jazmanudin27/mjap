@@ -16,7 +16,6 @@
             background-color: #fdfdfd;
         }
     </style>
-
     <div class="card shadow-sm">
         <div class="card-body">
             <div class="card-header-gradient text-center py-2">
@@ -543,15 +542,15 @@
                     it => it.kode_barang === kode_barang && it.satuan === satuan && !it.is_promo
                 );
 
-                if (duplikat) {
-                    Swal.fire({
-                        title: 'Barang sudah ada di keranjang!',
-                        text: 'Edit kuantitas di tabel jika ingin mengubah nilai.',
-                        icon: 'info',
-                        confirmButtonText: 'OK'
-                    });
-                    return;
-                }
+                // if (duplikat) {
+                //     Swal.fire({
+                //         title: 'Barang sudah ada di keranjang!',
+                //         text: 'Edit kuantitas di tabel jika ingin mengubah nilai.',
+                //         icon: 'info',
+                //         confirmButtonText: 'OK'
+                //     });
+                //     return;
+                // }
 
                 keranjang.push({
                     kode_barang,
@@ -903,35 +902,74 @@
             let clickCount = 0;
             let clickTimer = null;
 
-            $('#keranjangTable tbody').on('click', 'tr', function() {
-                const row = $(this);
-                const index = row.index();
+            $(document).on('click', '#keranjangTable tbody tr[data-toggle]', function() {
+                const index = $(this).data('index');
+                const item = keranjang[index];
+
+                if (!item || !item.id) {
+                    console.error('Item keranjang tidak ditemukan atau ID tidak ada di index:', index);
+                    return;
+                }
+
                 clickCount++;
+
                 if (clickCount === 3) {
                     clearTimeout(clickTimer);
                     clickCount = 0;
 
                     Swal.fire({
                         title: 'Hapus item ini?',
-                        text: 'Data akan dihapus dari keranjang.',
+                        text: 'Data akan dihapus dari keranjang dan database.',
                         icon: 'warning',
                         showCancelButton: true,
                         confirmButtonText: 'Ya, hapus!',
                         cancelButtonText: 'Batal'
                     }).then(result => {
                         if (result.isConfirmed) {
-                            keranjang.splice(index, 1);
-                            renderKeranjang();
-                            saveState();
+                            $.ajax({
+                                url: '{{ url('deleteDetailPenjualan') }}/' + item.id,
+                                method: 'POST',
+                                data: {
+                                    _token: '{{ csrf_token() }}'
+                                },
+                                success: function(response) {
+                                    if (response.success) {
+                                        keranjang.splice(index, 1);
+                                        localStorage.setItem('keranjangPenjualan', JSON
+                                            .stringify(keranjang));
+                                        renderKeranjang();
+
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Berhasil!',
+                                            text: 'Item berhasil dihapus.'
+                                        });
+                                    } else {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Gagal!',
+                                            text: 'Gagal menghapus item di database.'
+                                        });
+                                    }
+                                },
+                                error: function() {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error!',
+                                        text: 'Terjadi kesalahan saat menghapus data.'
+                                    });
+                                }
+                            });
                         }
                     });
                 } else {
                     clearTimeout(clickTimer);
                     clickTimer = setTimeout(() => {
                         clickCount = 0;
-                    }, 500); // reset hitungan klik jika lewat 500ms
+                    }, 500);
                 }
             });
+
 
             $('#harga_jual, #jumlah, #diskon1_persen, #diskon2_persen, #diskon3_persen, #diskon4_persen').on(
                 'keydown',

@@ -4,122 +4,168 @@
 <head>
     <meta charset="UTF-8">
     <title>Cetak Rekap Kiriman Barang</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Poppins', sans-serif;
-            font-size: 10pt;
-            margin: 20px;
-            color: #333;
-        }
-
-        h3 {
-            text-align: center;
-            margin-bottom: 0;
-            font-weight: 600;
-            font-size: 14pt;
-            color: #222;
-        }
-
-        .sub-header {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 9pt;
-            color: #555;
+            font-family: Tahoma, sans-serif;
+            font-size: 14px;
+            margin: 10px;
+            line-height: 1.2;
+            width: 210mm;
         }
 
         table {
-            width: 100%;
             border-collapse: collapse;
-            font-size: 9pt;
+            width: 100%;
+            table-layout: auto;
         }
 
-        thead th {
-            border-bottom: 1.5px solid #333;
-            padding: 6px 4px;
-            background: #f5f5f5;
-            font-weight: 500;
-            text-align: center;
-        }
-
-        tbody td {
-            padding: 6px 4px;
-            border-bottom: 0.5px dashed #ccc;
-            vertical-align: top;
-        }
-
-        tfoot td {
-            padding-top: 8px;
-            font-weight: 600;
-            border-top: 1px solid #333;
+        th,
+        td {
+            border: 1px solid #000;
+            padding: 2px 4px;
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         .text-center {
             text-align: center;
         }
 
-        .text-right {
+        .text-end {
             text-align: right;
         }
 
-        .no-border {
-            border: none !important;
+        .text-start {
+            text-align: left;
+        }
+
+        .fw-bold {
+            font-weight: bold;
+        }
+
+        .header-title {
+            font-weight: bold;
+            font-size: 24px;
+            text-align: center;
+        }
+
+        .header-subtitle {
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .col-8 {
+            width: 65%;
+        }
+
+        .col-4 {
+            width: 35%;
+        }
+
+        .highlight {
+            font-weight: bold;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+        }
+
+        .col-no {
+            width: 20px;
+        }
+
+        .col-kode {
+            width: 80px;
+        }
+
+        .col-qty {
+            width: 50px;
+        }
+
+        .col-satuan {
+            width: 50px;
         }
 
         @media print {
             body {
                 margin: 0;
             }
-
-            thead th,
-            tfoot td {
-                border-color: #000;
-            }
-
-            thead th {
-                background: #eee !important;
-                -webkit-print-color-adjust: exact;
-            }
         }
     </style>
 </head>
 
 <body>
-    <h3>REKAP KIRIMAN BARANG (DETAIL)</h3>
-    <div class="sub-header">
+    <div class="header-title">REKAP KIRIMAN BARANG </div>
+    <div class="header-subtitle">
         Tanggal Pengiriman: {{ tanggal_indo2($tanggal) }}<br>
         Wilayah: {{ $wilayah->nama_wilayah ?? '-' }}
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th width="3%">No</th>
-                <th width="7%">Kode</th>
-                <th width="20%">Supplier</th>
-                <th width="7%">Kode</th>
-                <th>Barang</th>
-                <th width="7%" class="text-center">Qty</th>
-                <th width="10%" class="text-center">Satuan</th>
-            </tr>
-        </thead>
-        <tbody>
-            @php $no = 1; @endphp
-            @foreach ($kiriman as $d)
-                @foreach ($detail[$d->no_faktur] as $dt)
-                    <tr>
-                        <td class="text-center">{{ $no++ }}</td>
-                        <td>{{ $dt->kode_supplier }}</td>
-                        <td>{{ $dt->nama_supplier }}</td>
-                        <td>{{ $dt->kode_barang }}</td>
-                        <td>{{ $dt->nama_barang }}</td>
-                        <td class="text-center">{{ number_format($dt->qty, 0, ',', '.') }}</td>
-                        <td class="text-center">{{ $dt->satuan }}</td>
+    <div class="container">
+        <!-- Detail Barang (col-8) -->
+        <div class="col-8">
+            <table>
+                <thead>
+                    <tr class="text-center">
+                        <th class="col-no">No</th>
+                        <th class="col-kode">Kode</th>
+                        <th>Nama Barang</th>
+                        <th class="col-qty">Jumlah</th>
                     </tr>
-                @endforeach
-            @endforeach
-        </tbody>
-    </table>
+                </thead>
+                <tbody>
+                    @php $no = 1; @endphp
+                    @foreach ($kiriman as $d)
+                        @foreach ($detail[$d->no_faktur] as $dt)
+                            <tr>
+                                <td class="text-center">{{ $no++ }}</td>
+                                <td>{{ $dt->kode_barang }}</td>
+                                <td class="text-start">{{ $dt->nama_barang }}</td>
+                                <td class="text-center">
+                                    {{ konversiQtySatuan($dt->qty, $barangSatuan[$dt->kode_barang]) }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Rekap Faktur (col-4) -->
+        <div class="col-4">
+            <table>
+                <thead>
+                    <tr class="text-center">
+                        <th>No Faktur</th>
+                        <th>Pelanggan</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php $total = 0; @endphp
+                    @foreach ($kiriman as $k)
+                        @php $total += $k->grand_total; @endphp
+                        <tr>
+                            <td>{{ $k->no_faktur }}</td>
+                            <td>{{ $k->nama_pelanggan }}</td>
+                            <td class="text-end">{{ number_format($k->grand_total, 0, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr class="highlight">
+                        <td colspan="2" class="text-end">TOTAL</td>
+                        <td class="text-end">{{ number_format($total, 0, ',', '.') }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
 </body>
 
 </html>

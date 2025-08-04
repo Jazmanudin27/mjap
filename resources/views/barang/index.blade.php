@@ -70,7 +70,7 @@
                                         <th style="width: 8%">Kode</th>
                                         <th>Nama</th>
                                         <th style="width: 8%">Jenis</th>
-                                        <th style="width: 8%">Merk</th>
+                                        <th style="width: 11%">Merk</th>
                                         <th style="width: 8%">Stok Min</th>
                                         <th style="width: 10%">Status</th>
                                         <th>Aksi</th>

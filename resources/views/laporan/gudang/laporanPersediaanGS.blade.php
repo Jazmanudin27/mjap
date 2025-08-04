@@ -42,10 +42,10 @@
                     </div>
                     <div class="col-md-12 mt-2">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="1" id="tampilkan_stok_kosong"
-                                name="tampilkan_stok_kosong" {{ request('tampilkan_stok_kosong') ? 'checked' : '' }}>
-                            <label class="form-check-label" for="tampilkan_stok_kosong">
-                                Tampilkan Stok Kosong
+                            <input class="form-check-input" type="checkbox" value="1" id="barang_tidak_aktif"
+                                name="barang_tidak_aktif" {{ request('barang_tidak_aktif') ? 'checked' : '' }}>
+                            <label class="form-check-label" for="barang_tidak_aktif">
+                                Barang Tidak Aktif
                             </label>
                         </div>
                     </div>

@@ -155,6 +155,9 @@ Route::group(['middleware' => 'useradmin'], function () {
         Route::get('cetakKirimanSales', 'cetakKirimanSales')->name('cetakKirimanSales');
         Route::get('cetakKirimanGudang', 'cetakKirimanGudang')->name('cetakKirimanGudang');
         Route::get('trackingSales', 'trackingSales')->name('trackingSales');
+        Route::get('trackingSales', 'trackingSales')->name('trackingSales');
+        Route::get('trackingSales', 'trackingSales')->name('trackingSales');
+        Route::post('deleteDetailPenjualan/{id}', 'deleteDetailPenjualan')->name('deleteDetailPenjualan');
     });
 
     Route::controller(ReturPembelianController::class)->group(function () {

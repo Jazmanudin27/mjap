@@ -219,6 +219,14 @@
                     <!-- History Tab -->
                     <div class="tab-pane fade" id="history" role="tabpanel">
                         <div class="mb-3 d-flex gap-2">
+                            @if (Auth::user()->role != 'Sales')
+                                <select id="filterSales" class="form-select form-select-sm" style="width: 100%;">
+                                    <option value="">-- Pilih Sales --</option>
+                                    @foreach ($salesOptions as $sales)
+                                        <option value="{{ $sales->nik }}">{{ $sales->name }}</option>
+                                    @endforeach
+                                </select>
+                            @endif
                             <input type="date" id="tanggalDari" class="form-control form-control-sm"
                                 value="{{ now()->format('Y-m-d') }}">
                             <input type="date" id="tanggalSampai" class="form-control form-control-sm"
@@ -356,8 +364,10 @@
         function loadHistoryData() {
             let dari = $('#tanggalDari').val();
             let sampai = $('#tanggalSampai').val();
+            let sales = $('#filterSales').val();
 
             $.get('filterHistory', {
+                sales: sales,
                 dari: dari,
                 sampai: sampai
             }, function(html) {
@@ -369,7 +379,7 @@
             loadTargetDataMobile();
             loadHistoryData();
 
-            $('#tanggalDari, #tanggalSampai').on('change', function() {
+            $('#tanggalDari, #tanggalSampai,#filterSales').on('change', function() {
                 loadHistoryData();
             });
             $('#filterBulan, #filterTahun').on('change', function() {

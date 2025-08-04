@@ -119,8 +119,9 @@ class LaporanGudangController extends Controller
                 ) AS saldo_akhir')
             );
 
-        if (!$request->tampilkan_stok_kosong) {
-            $query->having('saldo_akhir', '>', 0);
+        if (!$request->barang_tidak_aktif) {
+            $query->where('barang.status', 1);
+            // $query->having('saldo_akhir', '>', 0);
         }
         if (!empty($kode_supplier)) {
             $query->where('barang.kode_supplier', $kode_supplier);

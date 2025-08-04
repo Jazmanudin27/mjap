@@ -153,6 +153,7 @@ class PenjualanController extends Controller
             })
             ->where('d.no_faktur', $id)
             ->select([
+                'd.id',
                 'd.kode_barang',
                 'b.nama_barang',
                 's.satuan as nama_satuan',
@@ -171,6 +172,7 @@ class PenjualanController extends Controller
             ->get()
             ->map(function ($d) {
                 return [
+                    'id' => $d->id,
                     'kode_barang' => $d->kode_barang,
                     'nama_barang' => $d->nama_barang,
                     'satuan' => $d->nama_satuan,
@@ -188,6 +190,7 @@ class PenjualanController extends Controller
                     'is_promo' => (bool) $d->is_promo,
                 ];
             });
+        session(['redirect_penjualan_url' => url()->previous()]);
         return view('penjualan.edit', $data);
     }
 
@@ -315,20 +318,33 @@ class PenjualanController extends Controller
                     ->delete();
             }
 
-            DB::table('penjualan')->insert([
-                'no_faktur' => $noFaktur,
-                'tanggal' => $request->tanggal,
-                'kode_pelanggan' => $request->kode_pelanggan,
-                'kode_sales' => $request->kode_sales,
-                'jenis_transaksi' => $request->jenis_transaksi,
-                // 'tanggal_kirim' => $request->tanggal,
-                'jenis_bayar' => $request->jenis_bayar,
-                'keterangan' => $request->keterangan,
-                'id_user' => Auth::user()->nik,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
+            if ($mode == 'edit') {
+                DB::table('penjualan')->insert([
+                    'no_faktur' => $noFaktur,
+                    'tanggal' => $request->tanggal,
+                    'kode_pelanggan' => $request->kode_pelanggan,
+                    'kode_sales' => $request->kode_sales,
+                    'jenis_transaksi' => $request->jenis_transaksi,
+                    'jenis_bayar' => $request->jenis_bayar,
+                    'keterangan' => $request->keterangan,
+                    'id_user' => $request->kode_sales,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::table('penjualan')->insert([
+                    'no_faktur' => $noFaktur,
+                    'tanggal' => $request->tanggal,
+                    'kode_pelanggan' => $request->kode_pelanggan,
+                    'kode_sales' => $request->kode_sales,
+                    'jenis_transaksi' => $request->jenis_transaksi,
+                    'jenis_bayar' => $request->jenis_bayar,
+                    'keterangan' => $request->keterangan,
+                    'id_user' => Auth::user()->nik,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
             $totalKotor = $totalDiskonAll = $totalBersih = 0;
             foreach ($keranjang as $item) {
                 $qty = (float) $item['jumlah'];
@@ -470,7 +486,12 @@ class PenjualanController extends Controller
             logActivity($aksi, "$noFaktur (Pelanggan: {$request->kode_pelanggan})");
 
             DB::commit();
-            return redirect()->route('viewPenjualan')->with('success', $mode === 'edit' ? 'Penjualan berhasil diperbarui.' : 'Penjualan berhasil disimpan.');
+            if ($mode === 'edit') {
+                $redirectUrl = session('redirect_penjualan_url', route('viewPenjualan')); // dari Session
+                return redirect($redirectUrl)->with('success', 'Penjualan berhasil diperbarui.');
+            } else {
+                return redirect()->route('viewPenjualan')->with('success', 'Penjualan berhasil disimpan.');
+            }
         } catch (\Throwable $th) {
             DB::rollBack();
             report($th);
@@ -870,7 +891,7 @@ class PenjualanController extends Controller
             })
             ->where('barang.status', '1')
             ->orderBy('barang.nama_barang')
-            ->limit(10)
+            ->limit(50)
             ->get();
 
         $results = $barang->map(function ($b) {
@@ -1053,7 +1074,14 @@ class PenjualanController extends Controller
     }
     public function viewKirimanSales(Request $request)
     {
-        $wilayah = DB::table('wilayah')->get();
+        $tanggal = $request->tanggal ?? date('Y-m-d'); // Default ke hari ini kalau tidak ada input tanggal
+
+        $wilayah = DB::table('wilayah as w')
+            ->join('penjualan_kiriman as pk', 'pk.kode_wilayah', '=', 'w.kode_wilayah')
+            ->where('pk.tanggal', $tanggal)
+            ->select('w.kode_wilayah', 'w.nama_wilayah')
+            ->groupBy('w.kode_wilayah', 'w.nama_wilayah')
+            ->get();
 
         $data = DB::table('penjualan_kiriman as pk')
             ->join('penjualan as p', 'p.no_faktur', '=', 'pk.no_faktur')
@@ -1082,7 +1110,6 @@ class PenjualanController extends Controller
         $kodeWilayah = $request->kode_wilayah;
         $tanggal = $request->tanggal;
 
-        // Ambil semua kiriman berdasarkan tanggal dan wilayah
         $kiriman = DB::table('penjualan_kiriman as pk')
             ->join('penjualan as p', 'p.no_faktur', '=', 'pk.no_faktur')
             ->join('pelanggan as pl', 'pl.kode_pelanggan', '=', 'p.kode_pelanggan')
@@ -1124,14 +1151,33 @@ class PenjualanController extends Controller
             ->get()
             ->groupBy('no_faktur');
 
+        $barangSatuan = DB::table('barang_satuan')
+            ->orderBy('isi', 'desc')
+            ->get()
+            ->groupBy('kode_barang');
+
         // Kirim data ke view
-        $data['tanggal'] = $tanggal;
-        $data['wilayah'] = DB::table('wilayah')->where('kode_wilayah', $kodeWilayah)->first();
-        $data['kiriman'] = $kiriman;
-        $data['detail'] = $details;
+        $data = [
+            'tanggal' => $tanggal,
+            'wilayah' => DB::table('wilayah')->where('kode_wilayah', $kodeWilayah)->first(),
+            'kiriman' => $kiriman,
+            'detail' => $details,
+            'barangSatuan' => $barangSatuan,
+        ];
 
         return view('penjualan.cetakKirimanGudang', $data);
     }
+
+    public function deleteDetailPenjualan($id)
+    {
+        try {
+            DB::table('penjualan_detail')->where('id', $id)->delete();
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
 
     public function cetakKirimanSales(Request $request)
     {

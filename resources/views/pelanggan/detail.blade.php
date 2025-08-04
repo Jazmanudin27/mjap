@@ -46,7 +46,8 @@
                                 </label>
                                 <select name="status" class="form-select rounded-pill shadow-sm">
                                     <option value="1" {{ $pelanggan->status == '1' ? 'selected' : '' }}>Aktif</option>
-                                    <option value="0" {{ $pelanggan->status == '0' ? 'selected' : '' }}>Nonaktif</option>
+                                    <option value="0" {{ $pelanggan->status == '0' ? 'selected' : '' }}>Nonaktif
+                                    </option>
                                 </select>
                             </div>
 
@@ -57,8 +58,9 @@
                                 </label>
                                 <select name="kepemilikan" class="form-select rounded-pill shadow-sm">
                                     <option value="">-- Pilih Kepemilikan --</option>
-                                    @foreach(['Pribadi', 'Sewa', 'Milik Keluarga', 'Lainnya'] as $item)
-                                        <option value="{{ $item }}" {{ $pelanggan->kepemilikan == $item ? 'selected' : '' }}>
+                                    @foreach (['Pribadi', 'Sewa', 'Milik Keluarga', 'Lainnya'] as $item)
+                                        <option value="{{ $item }}"
+                                            {{ $pelanggan->kepemilikan == $item ? 'selected' : '' }}>
                                             {{ $item }}
                                         </option>
                                     @endforeach
@@ -81,8 +83,9 @@
                                 </label>
                                 <select name="hari" class="form-select rounded-pill shadow-sm">
                                     <option value="">-- Pilih Hari --</option>
-                                    @foreach(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as $hari)
-                                        <option value="{{ $hari }}" {{ $pelanggan->hari == $hari ? 'selected' : '' }}>{{ $hari }}
+                                    @foreach (['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as $hari)
+                                        <option value="{{ $hari }}"
+                                            {{ $pelanggan->hari == $hari ? 'selected' : '' }}>{{ $hari }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -92,8 +95,27 @@
                                 </label>
                                 <select name="kunjungan" class="form-select rounded-pill shadow-sm">
                                     <option value="">-- Pilih Frekuensi --</option>
-                                    <option value="mingguan" {{ $pelanggan->kunjungan == 'mingguan' ? 'selected' : '' }}>Mingguan</option>
-                                    <option value="dua_mingguan" {{ $pelanggan->kunjungan == 'dua_mingguan' ? 'selected' : '' }}>2 Minggu Sekali</option>
+                                    <option value="1" {{ $pelanggan->kunjungan == '1' ? 'selected' : '' }}>
+                                        Mingguan</option>
+                                    <option value="2" {{ $pelanggan->kunjungan == '2' ? 'selected' : '' }}>2 Minggu
+                                        Sekali
+                                    </option>
+                                </select>
+                            </div>
+
+
+                            {{-- Kepemilikan --}}
+                            <div class="col-md-12">
+                                <label class="form-label fw-semibold text-primary">
+                                    <i class="bi bi-house-door me-1"></i> Wilayah
+                                </label>
+                                <select name="wilayah" class="form-select form-select2 form-select-sm" required>
+                                    <option value="">Pilih Wilayah</option>
+                                    @foreach ($wilayahList as $kode => $nama)
+                                        <option value="{{ $kode }}"
+                                            {{ $pelanggan->kode_wilayah == $kode ? 'selected' : '' }}>{{ $nama }}
+                                        </option>
+                                    @endforeach
                                 </select>
                             </div>
 
@@ -105,6 +127,7 @@
                                 <input type="file" name="foto" class="form-control rounded-pill shadow-sm"
                                     onchange="previewImage(event)">
                             </div>
+
 
                             {{-- Preview Foto --}}
                             <div class="col-md-6 text-center">
@@ -131,7 +154,7 @@
     <script>
         function previewImage(event) {
             const reader = new FileReader();
-            reader.onload = function () {
+            reader.onload = function() {
                 const output = document.getElementById('preview');
                 output.src = reader.result;
                 output.style.display = 'block';
