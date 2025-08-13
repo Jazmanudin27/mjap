@@ -22,7 +22,7 @@ class SFAController extends Controller
         $nik = Auth::user()->nik;
 
         if (in_array($role, ['admin', 'owner'])) {
-            $salesList = DB::table('users')->where('team','!=','')->pluck('nik');
+            $salesList = DB::table('users')->where('team', '!=', '')->pluck('nik');
         } elseif ($role === 'spv sales') {
             $salesList = DB::table('users')->where('team', $nik)->pluck('nik');
         } else {
@@ -102,8 +102,14 @@ class SFAController extends Controller
         if ($userRole === 'sales') {
             $query->where('pengajuan_limit_kredit.nik', $userNik);
         }
+
         if ($userRole === 'spv sales') {
-            $query->where('hrd_karyawan.divisi', $userTeam);
+            $teamMembers = DB::table('users')
+                ->where('team', $userNik)
+                ->pluck('nik')
+                ->toArray();
+
+            $query->whereIn('pengajuan_limit_kredit.nik', $teamMembers);
         }
 
         if ($request->filled('kode_pelanggan')) {
@@ -601,7 +607,7 @@ class SFAController extends Controller
 
             DB::table('mutasi_barang_keluar')->insert([
                 'kode_transaksi' => $kodeTransaksi,
-                'tanggal' => $request->tanggal,
+                'tanggal' => Date('Y-m-d'),
                 'jenis_pengeluaran' => 'penjualan',
                 'tujuan' => $request->kode_pelanggan,
                 'keterangan' => 'Penjualan',
@@ -776,10 +782,10 @@ class SFAController extends Controller
         $simpan = DB::table('pelanggan')->insert([
             'kode_pelanggan' => $kodePelanggan,
             'tanggal_register' => now()->toDateString(),
-            'nama_pelanggan' => $request->nama_pelanggan,
-            'alamat_pelanggan' => $request->alamat_pelanggan,
+            'nama_pelanggan' => strtoupper($request->nama_pelanggan),
+            'alamat_pelanggan' => strtoupper($request->alamat_pelanggan),
+            'alamat_toko' => strtoupper($request->alamat_toko),
             'kode_wilayah' => $request->wilayah,
-            'alamat_toko' => $request->alamat_toko,
             'no_hp_pelanggan' => $request->no_hp_pelanggan,
             'limit_pelanggan' => $request->limit_pelanggan ?? 0,
             'hari' => $request->hari,

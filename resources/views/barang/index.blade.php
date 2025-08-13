@@ -67,7 +67,8 @@
                                 <thead class="table-primary text-center">
                                     <tr>
                                         <th style="width: 3%">No</th>
-                                        <th style="width: 8%">Kode</th>
+                                        <th style="width: 9%">Kode Barang</th>
+                                        <th style="width: 9%">Kode Item</th>
                                         <th>Nama</th>
                                         <th style="width: 8%">Jenis</th>
                                         <th style="width: 11%">Merk</th>
@@ -82,6 +83,7 @@
                                         <tr>
                                             <td class="text-center">{{ $no++ }}</td>
                                             <td>{{ $row->kode_barang }}</td>
+                                            <td>{{ $row->kode_item }}</td>
                                             <td>{{ $row->nama_barang }}</td>
                                             <td class="text-capitalize">{{ $row->kategori }}</td>
                                             <td class="text-capitalize">{{ $row->merk }}</td>

@@ -26,6 +26,10 @@
             </li>
             <li><a href="{{ url('viewPelanggan') }}"><i class="bi bi-people"></i><span>Pelanggan</span></a>
             </li>
+            <li><a href="{{ url('diskonBarang') }}"><i class="bi bi-people"></i><span>Diskon Per-Barang</span></a>
+            </li>
+            <li><a href="{{ url('diskonSupplier') }}"><i class="bi bi-people"></i><span>Diskon All Barang</span></a>
+            </li>
         </ul>
     </li>
 
@@ -50,7 +54,15 @@
                     </span></a></li>
         </ul>
     </li>
-
+    <li class="nav-item">
+        <a class="nav-link collapsed" data-bs-target="#gudang" data-bs-toggle="collapse" href="#">
+            <i class="bi bi-boxes"></i><span>Gudang</span><i class="bi bi-chevron-down ms-auto"></i>
+        </a>
+        <ul id="gudang" class="nav-content collapse" data-bs-parent="#sidebar-nav">
+            <li><a href="{{ url('laporanGudang') }}"><i class="bi bi-box-arrow-up"></i><span>Laporan</span></a>
+            </li>
+        </ul>
+    </li>
     <li class="nav-item">
         <a class="nav-link collapsed" data-bs-target="#keuangan" data-bs-toggle="collapse" href="#">
             <i class="bi bi-cash-stack"></i><span>Keuangan</span><i class="bi bi-chevron-down ms-auto"></i>

@@ -32,15 +32,31 @@ class MutasiBarangMasukController extends Controller
         $sumber = $request->sumber;
         $tgl_dari = $request->tanggal_dari;
         $tgl_sampai = $request->tanggal_sampai;
+        $kondisi = $request->kondisi; // gs / bs
+        $jenis_pemasukan = $request->jenis_pemasukan; // Repack, Retur Pengganti, dll
 
         $data['mutasi'] = DB::table('mutasi_barang_masuk')
-            ->when($kode_transaksi, fn($q) => $q->where('kode_transaksi', 'like', "%$kode_transaksi%"))
-            ->when($no_faktur, fn($q) => $q->where('no_faktur', 'like', "%$no_faktur%"))
-            ->when($sumber, fn($q) => $q->where('sumber', 'like', "%$sumber%"))
-            ->when($tgl_dari && $tgl_sampai, fn($q) => $q->whereBetween('tanggal', [$tgl_dari, $tgl_sampai]))
+            ->when($kode_transaksi, function ($q) use ($kode_transaksi) {
+                return $q->where('kode_transaksi', 'like', "%$kode_transaksi%");
+            })
+            ->when($no_faktur, function ($q) use ($no_faktur) {
+                return $q->where('no_faktur', 'like', "%$no_faktur%");
+            })
+            ->when($sumber, function ($q) use ($sumber) {
+                return $q->where('sumber', 'like', "%$sumber%");
+            })
+            ->when($kondisi, function ($q) use ($kondisi) {
+                return $q->where('kondisi', $kondisi); // 'gs' atau 'bs'
+            })
+            ->when($jenis_pemasukan, function ($q) use ($jenis_pemasukan) {
+                return $q->where('jenis_pemasukan', $jenis_pemasukan);
+            })
+            ->when($tgl_dari && $tgl_sampai, function ($q) use ($tgl_dari, $tgl_sampai) {
+                return $q->whereBetween('tanggal', [$tgl_dari, $tgl_sampai]);
+            })
             ->orderByDesc('tanggal')
-            ->paginate(10)
-            ->appends(request()->query());
+            ->paginate(20)
+            ->appends($request->query()); // Pertahankan semua parameter filter
 
         return view('mutasi_masuk.index', $data);
     }
@@ -70,21 +86,98 @@ class MutasiBarangMasukController extends Controller
 
     public function storeTerimaBarang(Request $request)
     {
-        try {
-            DB::table('mutasi_barang_masuk')
-                ->where('kode_transaksi', $request->kode_transaksi)
-                ->update([
-                    'tanggal_diterima' => $request->tanggal,
-                    'catatan' => $request->keterangan,
-                    'updated_at' => now()
-                ]);
+        // dd($request->all());
+        // DB::beginTransaction();
+        // try {
+        $kodeTransaksi = $request->kode_transaksi;
 
-            return back()->with('success', 'Barang berhasil diterima dan dicatat.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage());
+        // update header mutasi_barang_masuk (tanggal diterima)
+        DB::table('mutasi_barang_masuk')
+            ->where('kode_transaksi', $kodeTransaksi)
+            ->update([
+                'tanggal_diterima' => $request->tanggal,
+                'updated_at' => now()
+            ]);
+
+        // ambil repack (default array kosong)
+        $repack = $request->input('repack', []);
+
+        $repackDetails = [];
+
+        foreach ($repack as $detailId => $repackQty) {
+            $repackQty = intval($repackQty);
+            $detail = DB::table('mutasi_barang_masuk_detail')->where('id', $detailId)->first();
+
+            if (!$detail)
+                continue;
+
+            $returQty = intval($detail->qty);
+            // safety clamp
+            if ($repackQty < 0)
+                $repackQty = 0;
+            if ($repackQty > $returQty)
+                $repackQty = $returQty;
+
+            $badQty = $returQty - $repackQty;
+
+            if ($badQty > 0) {
+                // Update qty untuk sisa retur/bad stock
+                DB::table('mutasi_barang_masuk_detail')
+                    ->where('id', $detailId)
+                    ->update([
+                        'qty' => $badQty,
+                        'qty_konversi' => $badQty * $detail->konversi,
+                    ]);
+            }
+
+            // repackQty masuk ke transaksi baru
+            if ($repackQty > 0) {
+                $repackDetails[] = [
+                    'satuan_id' => $detail->satuan_id,
+                    'qty' => $repackQty,
+                    'konversi' => $detail->konversi,
+                    'qty_konversi' => $repackQty * $detail->konversi,
+                ];
+            }
         }
-    }
 
+        // jika ada repack, buat transaksi barang keluar (BK...)
+        if (count($repackDetails) > 0) {
+            $prefix = 'BK' . date('ym');
+            $last = DB::table('mutasi_barang_masuk')
+                ->where('kode_transaksi', 'like', "$prefix%")
+                ->orderByDesc('kode_transaksi')
+                ->value('kode_transaksi');
+            $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+            $newKodeTransaksi = $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+
+            DB::table('mutasi_barang_masuk')->insert([
+                'kode_transaksi' => $newKodeTransaksi,
+                'tanggal' => $request->tanggal,
+                'jenis_pemasukan' => 'repack',
+                'keterangan' => 'Auto Repack from ' . $kodeTransaksi,
+                'kondisi' => 'gs',
+                'tanggal_diterima' => $request->tanggal,
+            ]);
+
+            foreach ($repackDetails as $item) {
+                DB::table('mutasi_barang_masuk_detail')->insert([
+                    'kode_transaksi' => $newKodeTransaksi,
+                    'satuan_id' => $item['satuan_id'],
+                    'qty' => $item['qty'],
+                    'konversi' => $item['konversi'],
+                    'qty_konversi' => $item['qty_konversi'],
+                ]);
+            }
+        }
+
+        DB::commit();
+        return back()->with('success', 'Barang berhasil dikirim & Repack dipisahkan.');
+        // } catch (\Exception $e) {
+        //     DB::rollBack();
+        //     return back()->with('error', 'Gagal memproses: ' . $e->getMessage());
+        // }
+    }
     public function update(Request $request, $kode_transaksi)
     {
         DB::beginTransaction();

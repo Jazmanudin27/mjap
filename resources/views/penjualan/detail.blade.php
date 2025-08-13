@@ -6,8 +6,14 @@
         $grandTotal = $detail->sum('total'); // subtotal = harga kotor, total = harga bersih setelah diskon
         $karyawan = DB::table('hrd_karyawan')->where('nik', $penjualan->id_user)->first();
         $jmlhBayar = DB::table('penjualan_pembayaran')->where('no_faktur', $penjualan->no_faktur)->sum('jumlah');
-        $jmlhBayarTf = DB::table('penjualan_pembayaran_transfer')->where('status', 'disetujui')->where('no_faktur', $penjualan->no_faktur)->sum('jumlah');
-        $jmlhBayarGiro = DB::table('penjualan_pembayaran_giro')->where('status', 'disetujui')->where('no_faktur', $penjualan->no_faktur)->sum('jumlah');
+        $jmlhBayarTf = DB::table('penjualan_pembayaran_transfer')
+            ->where('status', 'disetujui')
+            ->where('no_faktur', $penjualan->no_faktur)
+            ->sum('jumlah');
+        $jmlhBayarGiro = DB::table('penjualan_pembayaran_giro')
+            ->where('status', 'disetujui')
+            ->where('no_faktur', $penjualan->no_faktur)
+            ->sum('jumlah');
         $sisaBayar = $grandTotal - ($jmlhBayar + $jmlhBayarTf + $jmlhBayarGiro);
         $classSisa = $sisaBayar > 0 ? 'table-danger' : 'table-success';
     @endphp
@@ -153,10 +159,11 @@
                                     <tr class="fw-bold text-end {{ $classSisa }}">
                                         <td colspan="10" class="text-end"><i class="fas fa-wallet"></i> Sisa Bayar</td>
                                         <td>
-                                            @if((($sisaBayar-$potongFaktur) ?? 0) == 0)
+                                            @if (($sisaBayar - $potongFaktur ?? 0) == 0)
                                                 <a class="btn btn-sm btn-success">Lunas</a>
                                             @else
-                                                <a class="btn btn-sm btn-danger">{{ rupiah(($sisaBayar-$potongFaktur)) }}</a>
+                                                <a
+                                                    class="btn btn-sm btn-danger">{{ rupiah($sisaBayar - $potongFaktur) }}</a>
                                             @endif
                                         </td>
                                     </tr>
@@ -164,7 +171,7 @@
                             </table>
                         </div>
 
-                        @if(count($retur) > 0)
+                        @if (count($retur) > 0)
                             <h5 class="fw-semibold mb-3"><i class="bi bi-arrow-counterclockwise"></i> Retur Barang</h5>
                             <div class="table-responsive mb-4">
                                 <table class="table table-bordered table-sm table-hover text-nowrap">
@@ -187,7 +194,7 @@
                                             $no = 1;
                                             $totalRetur = 0;
                                         @endphp
-                                        @foreach($retur as $r)
+                                        @foreach ($retur as $r)
                                             @php
                                                 $totalRetur += $r->subtotal_retur;
                                             @endphp
@@ -214,7 +221,7 @@
                                 </table>
                             </div>
                         @endif
-                        @if($sisaBayar != 0)
+                        @if ($sisaBayar != 0)
                             <div class="d-flex justify-content-end mb-2">
                                 <button class="btn btn-primary btn-sm" id="btnTambahPembayaran">
                                     <i class="bi bi-plus-circle"></i> Tambah Pembayaran
@@ -222,7 +229,7 @@
                             </div>
                         @endif
                         <h5 class="fw-semibold mb-2"><i class="bi bi-clock-history"></i> Riwayat Pembayaran</h5>
-                        @if($pembayaran->count())
+                        @if ($pembayaran->count())
                             <div class="table-responsive mb-4" style="max-height:500px;overflow-y:auto;">
                                 <table class="table table-bordered table-sm table-hover text-nowrap">
                                     <thead class="table-light text-center sticky-top bg-white shadow-sm">
@@ -238,7 +245,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($pembayaran as $no => $pb)
+                                        @foreach ($pembayaran as $no => $pb)
                                             <tr>
                                                 <td class="text-center">{{ $no + 1 }}</td>
                                                 <td>{{ tanggal_indo2($pb->tanggal) }}</td>
@@ -258,13 +265,15 @@
                                                     $batasEdit = $tanggalPembayaran->copy()->addDays(3);
                                                     $sekarang = \Carbon\Carbon::now();
                                                 @endphp
-                                                @if($sisaBayar != 0 && $sekarang->lessThan($batasEdit))
+                                                @if ($sisaBayar != 0 && $sekarang->lessThan($batasEdit))
                                                     <td class="text-center">
                                                         <button class="btn btn-sm btn-outline-primary btnEditPembayaran"
                                                             data-id="{{ $pb->no_bukti }}" data-tgl="{{ $pb->tanggal }}"
-                                                            data-jml="{{ $pb->jumlah }}" data-jenisbayar="{{ $pb->jenis_bayar }}"
-                                                            data-ket="{{ $pb->keterangan }}" data-sales="{{ $pb->kode_sales }}"
-                                                            title="Edit"><i class="bi bi-pencil-square"></i></button>
+                                                            data-jml="{{ $pb->jumlah }}"
+                                                            data-jenisbayar="{{ $pb->jenis_bayar }}"
+                                                            data-ket="{{ $pb->keterangan }}"
+                                                            data-sales="{{ $pb->kode_sales }}" title="Edit"><i
+                                                                class="bi bi-pencil-square"></i></button>
 
                                                         <button class="btn btn-sm btn-outline-danger btnHapusPembayaran"
                                                             data-href="{{ route('deletePembayaranPenjualan', $pb->no_bukti) }}"
@@ -280,8 +289,9 @@
                             <div class="alert alert-info">Belum ada riwayat pembayaran.</div>
                         @endif
 
-                        @if($transfer->count())
-                            <h5 class="fw-semibold mb-2"><i class="bi bi-clock-history"></i> Riwayat Pembayaran Transfer</h5>
+                        @if ($transfer->count())
+                            <h5 class="fw-semibold mb-2"><i class="bi bi-clock-history"></i> Riwayat Pembayaran Transfer
+                            </h5>
                             <div class="table-responsive mb-4" style="max-height:500px;overflow-y:auto;">
                                 <table class="table table-bordered table-sm table-hover text-nowrap">
                                     <thead class="table-light text-center sticky-top bg-white shadow-sm">
@@ -298,7 +308,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($transfer as $no => $tr)
+                                        @foreach ($transfer as $no => $tr)
                                             <tr>
                                                 <td class="text-center">{{ $no + 1 }}</td>
                                                 <td>{{ tanggal_indo2($tr->tanggal) }}</td>
@@ -315,12 +325,14 @@
                                                 <td class="text-center">{{ $tr->bank_pengirim }}</td>
                                                 <td>{{ $tr->keterangan ?: '-' }}</td>
                                                 <td>{{ \Carbon\Carbon::parse($tr->created_at)->format('d-m-Y H:i') }}</td>
-                                                @if($tr->status == 'pending')
+                                                @if ($tr->status == 'pending')
                                                     <td class="text-center">
                                                         <button class="btn btn-sm btn-outline-primary btnEditPembayaran"
-                                                            data-id="{{ $tr->no_faktur }}" data-tgl="{{ $tr->tanggal }}"
+                                                            data-id="{{ $tr->no_faktur }}"
+                                                            data-tgl="{{ $tr->tanggal }}"
                                                             data-jml="{{ $tr->jumlah }}" data-jenisbayar="transfer"
-                                                            data-ket="{{ $tr->keterangan }}" data-sales="{{ $tr->kode_sales }}"
+                                                            data-ket="{{ $tr->keterangan }}"
+                                                            data-sales="{{ $tr->kode_sales }}"
                                                             data-bank="{{ $tr->bank_pengirim }}" title="Edit"><i
                                                                 class="bi bi-pencil-square"></i></button>
                                                         <button class="btn btn-sm btn-outline-danger btnHapusPembayaran"
@@ -336,7 +348,7 @@
                             </div>
                         @endif
 
-                        @if($giro->count())
+                        @if ($giro->count())
                             <h5 class="fw-semibold mb-2"><i class="bi bi-clock-history"></i> Riwayat Pembayaran Giro</h5>
                             <div class="table-responsive mb-4" style="max-height:500px;overflow-y:auto;">
                                 <table class="table table-bordered table-sm table-hover text-nowrap">
@@ -356,7 +368,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($giro as $no => $gr)
+                                        @foreach ($giro as $no => $gr)
                                             <tr>
                                                 <td class="text-center">{{ $no + 1 }}</td>
                                                 <td>{{ tanggal_indo2($gr->tanggal) }}</td>
@@ -375,13 +387,16 @@
                                                 <td class="text-center">{{ tanggal_indo2($gr->jatuh_tempo) }}</td>
                                                 <td>{{ $gr->keterangan ?: '-' }}</td>
                                                 <td>{{ \Carbon\Carbon::parse($gr->created_at)->format('d-m-Y H:i') }}</td>
-                                                @if($gr->status == 'pending')
+                                                @if ($gr->status == 'pending')
                                                     <td class="text-center">
                                                         <button class="btn btn-sm btn-outline-primary btnEditPembayaran"
-                                                            data-id="{{ $gr->no_faktur }}" data-tgl="{{ $gr->tanggal }}"
+                                                            data-id="{{ $gr->no_faktur }}"
+                                                            data-tgl="{{ $gr->tanggal }}"
                                                             data-jml="{{ $gr->jumlah }}" data-jenisbayar="giro"
-                                                            data-ket="{{ $gr->keterangan }}" data-sales="{{ $gr->kode_sales }}"
-                                                            data-bank="{{ $gr->bank_pengirim }}" data-nogiro="{{ $gr->no_giro }}"
+                                                            data-ket="{{ $gr->keterangan }}"
+                                                            data-sales="{{ $gr->kode_sales }}"
+                                                            data-bank="{{ $gr->bank_pengirim }}"
+                                                            data-nogiro="{{ $gr->no_giro }}"
                                                             data-jatuhtempo="{{ $gr->jatuh_tempo }}" title="Edit"><i
                                                                 class="bi bi-pencil-square"></i></button>
 
@@ -404,8 +419,8 @@
             </div>
         </div>
     </div>
-    <div class="modal fade" id="modalPembayaran" tabindex="-1" aria-labelledby="modalPembayaranLabel" aria-hidden="true"
-        data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal fade" id="modalPembayaran" tabindex="-1" aria-labelledby="modalPembayaranLabel"
+        aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
             <form id="formPembayaran" method="POST" class="needs-validation" novalidate>
                 @csrf
@@ -427,7 +442,7 @@
                             <label for="pay_tanggal" class="form-label fw-semibold">
                                 <i class="bi bi-calendar-check me-1"></i> Tanggal
                             </label>
-                            <input type="date" class="form-control form-control-sm" value="{{ Date('Y-m-d')}}"
+                            <input type="date" class="form-control form-control-sm" value="{{ Date('Y-m-d') }}"
                                 id="pay_tanggal" name="tanggal" required>
                         </div>
 
@@ -437,8 +452,9 @@
                             </label>
                             <select class="form-select-sm select2-sales" name="kode_sales" id="pay_sales" required>
                                 <option value="">Pilih Sales</option>
-                                @foreach($sales as $s)
-                                    <option value="{{ $s->nik }}" {{ $penjualan->kode_sales == $s->nik ? 'selected' : '' }}>
+                                @foreach ($sales as $s)
+                                    <option value="{{ $s->nik }}"
+                                        {{ $penjualan->kode_sales == $s->nik ? 'selected' : '' }}>
                                         {{ $s->nama_lengkap }}
                                     </option>
                                 @endforeach
@@ -481,8 +497,8 @@
                             <label for="pay_jumlah" class="form-label fw-semibold">
                                 <i class="bi bi-currency-dollar me-1"></i> Jumlah Pembayaran
                             </label>
-                            <input type="text" class="form-control form-control-sm text-end" id="pay_jumlah" name="jumlah"
-                                placeholder="Masukkan jumlah" required>
+                            <input type="text" class="form-control form-control-sm text-end" id="pay_jumlah"
+                                name="jumlah" placeholder="Masukkan jumlah" required>
                         </div>
 
                         <div class="mb-3">
@@ -508,7 +524,7 @@
     </div>
 
     <script>
-        $(document).ready(function () {
+        $(document).ready(function() {
 
             function toggleBankPengirim() {
                 const jenis = $('#pay_metode').val();
@@ -521,11 +537,11 @@
                 }
             }
 
-            $('#modalPembayaran').on('shown.bs.modal', function () {
+            $('#modalPembayaran').on('shown.bs.modal', function() {
                 toggleBankPengirim();
             });
 
-            $('#pay_metode').on('select2:select', function () {
+            $('#pay_metode').on('select2:select', function() {
                 toggleBankPengirim();
             });
 
@@ -535,7 +551,7 @@
                 width: '100%',
             });
 
-            $('.btnHapusPembayaran').on('click', function (e) {
+            $('.btnHapusPembayaran').on('click', function(e) {
                 e.preventDefault();
                 const url = $(this).data('href');
                 Swal.fire({
@@ -563,19 +579,19 @@
                 return parseInt(rp.replace(/[^\d]/g, '')) || 0;
             }
 
-            $('#pay_jumlah').on('input', function () {
+            $('#pay_jumlah').on('input', function() {
                 let clear = parseRupiah($(this).val());
                 $(this).val(formatRupiah(clear));
             });
 
-            $('#btnTambahPembayaran').on('click', function () {
+            $('#btnTambahPembayaran').on('click', function() {
                 resetForm();
                 $('#modalPembayaranLabel').text('Tambah Pembayaran');
                 $('.btnSimpan').text('Simpan');
                 $('#modalPembayaran').modal('show');
             });
 
-            $('.btnEditPembayaran').on('click', function () {
+            $('.btnEditPembayaran').on('click', function() {
                 const id = $(this).data('id');
                 const tgl = $(this).data('tgl');
                 const jml = $(this).data('jml');
@@ -591,7 +607,7 @@
 
                 $('#modalPembayaran').modal('show');
 
-                $('#modalPembayaran').one('shown.bs.modal', function () {
+                $('#modalPembayaran').one('shown.bs.modal', function() {
                     $('#pay_metode').val(metode).trigger('change.select2');
                     $('#pay_sales').val(sales).trigger('change.select2');
                     $('#pay_keterangan').val(ket);
@@ -604,12 +620,12 @@
             const ROUTE_STORE = "{{ route('storePembayaranPenjualan') }}";
             const ROUTE_UPDATE = "{{ route('updatePembayaranPenjualan', ['id' => ':id']) }}";
 
-            $('#formPembayaran').on('submit', function (e) {
+            $('#formPembayaran').on('submit', function(e) {
                 e.preventDefault();
                 const id = $('#pay_id').val();
-                const url = id
-                    ? ROUTE_UPDATE.replace(':id', id)
-                    : ROUTE_STORE;
+                const url = id ?
+                    ROUTE_UPDATE.replace(':id', id) :
+                    ROUTE_STORE;
                 $.ajax({
                     type: 'POST',
                     url: url,
@@ -625,12 +641,12 @@
                         kode_sales: $('#pay_sales').val(),
                         bank_pengirim: $('input[name="bank_pengirim"]').val()
                     },
-                    success: function () {
+                    success: function() {
                         $('#modalPembayaran').modal('hide');
                         Swal.fire('Berhasil', 'Pembayaran disimpan.', 'success')
                             .then(() => location.reload());
                     },
-                    error: function (xhr) {
+                    error: function(xhr) {
                         const msg = xhr.responseJSON?.message || 'Terjadi kesalahan.';
                         Swal.fire('Gagal', msg, 'error');
                     }

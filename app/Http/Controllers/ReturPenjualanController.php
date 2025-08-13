@@ -74,13 +74,13 @@ class ReturPenjualanController extends Controller
             ->leftJoin('barang', 'barang.kode_barang', '=', 'retur_penjualan_detail.kode_barang')
             ->leftJoin('barang_satuan', function ($join) {
                 $join->on('barang_satuan.kode_barang', '=', 'retur_penjualan_detail.kode_barang')
-                    ->where('barang_satuan.isi', 1); // ambil satuan utama (misalnya PCS)
+                    ->where('barang_satuan.isi', 1);
             })
             ->where('retur_penjualan_detail.no_retur', $no_retur)
             ->select(
                 'retur_penjualan_detail.*',
                 'barang.nama_barang',
-                'barang_satuan.satuan as nama_satuan' // alias supaya jelas
+                'barang_satuan.satuan as nama_satuan'
             )
             ->get();
 
@@ -113,6 +113,71 @@ class ReturPenjualanController extends Controller
                     'subtotal_retur' => $item['subtotal'],
                     'created_at' => now(),
                     'updated_at' => now(),
+                ]);
+            }
+
+            $mutasi = DB::table('mutasi_barang_masuk')
+                ->where('no_faktur', $no_retur)
+                ->where('jenis_pemasukan', 'Retur Penjualan')
+                ->first();
+
+            if ($mutasi) {
+                $kode_transaksi = $mutasi->kode_transaksi;
+
+                DB::table('mutasi_barang_masuk')
+                    ->where('kode_transaksi', $kode_transaksi)
+                    ->update([
+                        'tanggal' => $request->tanggal,
+                        'jenis_pemasukan' => 'Retur Penjualan',
+                        'no_faktur' => $no_retur,
+                        'sumber' => 'pelanggan',
+                        'kondisi' => 'bs',
+                        'keterangan' => 'Retur dari pelanggan: ' . $request->keterangan,
+                        'updated_at' => now(),
+                    ]);
+
+                DB::table('mutasi_barang_masuk_detail')
+                    ->where('kode_transaksi', $kode_transaksi)
+                    ->delete();
+            } else {
+                $prefix = 'BM' . date('ym');
+                $last = DB::table('mutasi_barang_masuk')
+                    ->where('kode_transaksi', 'like', "$prefix%")
+                    ->orderByDesc('kode_transaksi')
+                    ->value('kode_transaksi');
+
+                $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+                $kode_transaksi = $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
+
+                DB::table('mutasi_barang_masuk')->insert([
+                    'kode_transaksi' => $kode_transaksi,
+                    'tanggal' => $request->tanggal,
+                    'jenis_pemasukan' => 'Retur Penjualan',
+                    'no_faktur' => $no_retur,
+                    'sumber' => 'pelanggan',
+                    'kondisi' => 'bs',
+                    'keterangan' => 'Retur dari pelanggan: ' . $request->keterangan,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            foreach ($detail as $item) {
+                $barangSatuan = DB::table('barang_satuan')
+                    ->where('kode_barang', $item['kode_barang'])
+                    ->where('isi', 1)
+                    ->first();
+                $konversi = $barangSatuan->isi ?? 1;
+                $qty = $item['qty'];
+                $qty_konversi = $qty * $konversi;
+
+                DB::table('mutasi_barang_masuk_detail')->insert([
+                    'kode_transaksi' => $kode_transaksi,
+                    'no_faktur' => $no_retur,
+                    'satuan_id' => $barangSatuan->id,
+                    'qty' => $item['qty'],
+                    'konversi' => $konversi,
+                    'qty_konversi' => $qty_konversi,
                 ]);
             }
 
@@ -206,7 +271,7 @@ class ReturPenjualanController extends Controller
                 'kode_transaksi' => $kode_transaksi,
                 'tanggal' => $request->tanggal,
                 'jenis_pemasukan' => 'Retur Penjualan',
-                'no_faktur' => $request->no_faktur,
+                'no_faktur' => $no_retur,
                 'sumber' => 'pelanggan',
                 'kondisi' => 'bs',
                 'keterangan' => 'Retur dari pelanggan: ' . $request->keterangan,
@@ -224,7 +289,7 @@ class ReturPenjualanController extends Controller
                 $qty_konversi = $qty * $konversi;
                 DB::table('mutasi_barang_masuk_detail')->insert([
                     'kode_transaksi' => $kode_transaksi,
-                    'no_faktur' => $request->no_faktur,
+                    'no_faktur' => $no_retur,
                     'satuan_id' => $barangSatuan->id,
                     'qty' => $item['qty'],
                     'konversi' => $konversi,
@@ -275,6 +340,8 @@ class ReturPenjualanController extends Controller
         try {
             DB::table('retur_penjualan_detail')->where('no_retur', $no_retur)->delete();
             DB::table('retur_penjualan')->where('no_retur', $no_retur)->delete();
+            DB::table('mutasi_barang_masuk_detail')->where('no_faktur', $no_retur)->delete();
+            DB::table('mutasi_barang_masuk')->where('no_faktur', $no_retur)->delete();
 
             DB::commit();
             return redirect()->route('viewReturPenjualan')->with('success', 'Data retur berhasil dihapus!');

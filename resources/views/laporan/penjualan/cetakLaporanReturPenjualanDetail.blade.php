@@ -54,8 +54,8 @@
                         <td>{{ $item->nama_barang }}</td>
                         <td class="text-end">{{ $item->qty }}</td>
                         <td class="text-center">{{ $item->satuan }}</td>
-                        <td class="text-end">{{ rupiah($item->harga_retur) }}</td>
-                        <td class="text-end">{{ rupiah($item->subtotal_retur) }}</td>
+                        <td class="text-end">{{ formatAngka($item->harga_retur) }}</td>
+                        <td class="text-end">{{ formatAngka($item->subtotal_retur) }}</td>
 
                         @if ($i === 0)
                             <td rowspan="{{ $rowspan }}">{{ $d->keterangan ?? '-' }}</td>
@@ -71,7 +71,7 @@
         <tfoot>
             <tr>
                 <td colspan="13" class="text-end fw-bold">GRAND TOTAL</td>
-                <td class="text-end fw-bold">{{ rupiah($grandTotal) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($grandTotal) }}</td>
                 <td></td>
             </tr>
         </tfoot>

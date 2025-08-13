@@ -79,6 +79,30 @@
                 </div>
                 {{-- Tabel Barang --}}
                 <div class="form-section mt-3">
+
+                    <div class="row g-1 align-items-end mb-2">
+                        <div class="col-md-4">
+                            <select id="kode_barang" name="kode_barang" class="form-select form-select-sm" tabindex="2">
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select id="satuan" class="form-select2 form-select-sm">
+                                <option value="">Satuan</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <input type="text" id="harga_jual" class="form-control form-control-sm text-end"
+                                placeholder="Harga Jual">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="text" id="jumlah" class="form-control form-control-sm text-end"
+                                placeholder="Qty">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="text" id="total" class="form-control form-control-sm text-end"
+                                placeholder="Total" readonly>
+                        </div>
+                    </div>
                     <div class="table-responsive form-section">
                         <table class="table table-bordered table-sm align-middle" id="tabelRetur">
                             <thead class="table-light text-center">
@@ -117,7 +141,7 @@
         </div>
     </div>
     <script>
-        $(document).ready(function () {
+        $(document).ready(function() {
             let keranjangRetur = [];
 
             function formatRupiah(angka) {
@@ -140,46 +164,141 @@
                     url: "{{ route('getPelanggan') }}",
                     dataType: 'json',
                     delay: 250,
-                    data: params => ({ kode_pelanggan: params.term }),
-                    processResults: data => ({ results: data.results }),
+                    data: params => ({
+                        kode_pelanggan: params.term
+                    }),
+                    processResults: data => ({
+                        results: data.results
+                    }),
                     cache: true
                 }
             });
 
-            // Jika ada pelanggan tersimpan, masukkan ke select2
             if (savedPelanggan) {
                 $.ajax({
                     url: "{{ route('getPelanggan') }}",
-                    data: { kode_pelanggan: savedPelanggan },
-                    success: function (data) {
+                    data: {
+                        kode_pelanggan: savedPelanggan
+                    },
+                    success: function(data) {
                         const opt = data.results.find(p => p.id === savedPelanggan);
                         if (opt) {
                             const newOption = new Option(opt.text, opt.id, true, true);
                             $('#kode_pelanggan').append(newOption).trigger('change');
+
+                            // 🔽 Muat no_faktur setelah pelanggan dimuat
+                            $('#no_faktur').html('<option value="">Loading...</option>');
+                            $.get(`/getFakturByPelanggan/${savedPelanggan}`, function(res) {
+                                let opsi = '<option value="">Pilih No Faktur</option>';
+                                res.forEach(f => {
+                                    opsi +=
+                                        `<option value="${f.no_faktur}">${f.no_faktur}</option>`;
+                                });
+                                $('#no_faktur').html(opsi);
+
+                                // 🔽 Pilih no_faktur jika tersimpan
+                                if (savedFaktur) {
+                                    if ($('#no_faktur option[value="' + savedFaktur + '"]')
+                                        .length) {
+                                        $('#no_faktur').val(savedFaktur).trigger('change');
+                                    } else {
+                                        localStorage.removeItem(
+                                            'no_faktur'); // bersihkan jika tidak valid
+                                    }
+                                }
+                            }).fail(() => {
+                                $('#no_faktur').html('<option value="">Gagal muat</option>');
+                            });
                         }
                     }
                 });
             }
 
-            // Jika ada faktur tersimpan, load faktur
-            if (savedPelanggan && savedFaktur) {
-                $.get(`/getFakturByPelanggan/${savedPelanggan}`, function (res) {
-                    let opsi = '<option value="">Pilih No Faktur</option>';
-                    res.forEach(f => {
-                        opsi += `<option value="${f.no_faktur}" ${f.no_faktur === savedFaktur ? 'selected' : ''}>${f.no_faktur}</option>`;
-                    });
-                    $('#no_faktur').html(opsi);
-                    $('#no_faktur').trigger('change'); // trigger load detail
-                });
+            if (savedKeranjang) {
+                try {
+                    const data = JSON.parse(savedKeranjang);
+                    if (Array.isArray(data) && data.length > 0) {
+                        data.forEach(item => {
+                            const newRow = `
+                                <tr>
+                                    <td class="text-center">${$('#tabelRetur tbody tr').length + 1}</td>
+                                    <td>${item.kode_barang}</td>
+                                    <td>${item.nama_barang}</td>
+                                    <td>
+                                        <input type="text" step="0.01" class="form-control form-control-sm text-end qtyRetur"
+                                            value="${parseFloat(item.qty).toFixed(2)}" data-kode="${item.kode_barang}"
+                                            max="${parseFloat(item.qty).toFixed(2)}" min="0.01">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm text-end hargaRetur"
+                                            value="${formatRupiah(item.harga)}">
+                                    </td>
+                                    <td class="text-end subtotal">${formatRupiah(item.subtotal)}</td>
+                                </tr>
+                            `;
+                            $('#tabelRetur tbody').append(newRow);
+                        });
+                        hitungTotalRetur();
+                    }
+                } catch (e) {
+                    console.error('Gagal parsing keranjang dari localStorage', e);
+                    localStorage.removeItem('keranjang_retur');
+                }
             }
 
+            $('#kode_barang').select2({
+                placeholder: 'Cari barang...',
+                dropdownParent: $('#kode_barang').parent(),
+                ajax: {
+                    url: '{{ route('getBarang') }}',
+                    dataType: 'json',
+                    delay: 250,
+                    data: params => ({
+                        q: params.term
+                    }),
+                    processResults: data => ({
+                        results: data.results
+                    }),
+                    cache: true
+                }
+            });
+
+            $('#kode_barang').change(function() {
+                const kode_barang = $(this).val();
+                $('#satuan').html('<option value="">Memuat...</option>');
+
+                $.get("{{ route('getSatuanBarang', '') }}/" + kode_barang, function(res) {
+                    let html = '<option value="">Satuan</option>';
+                    res.forEach(function(item) {
+                        html +=
+                            `<option value="${item.satuan}" data-harga="${item.harga_jual}" data-id="${item.id}">${item.satuan} </option>`;
+                    });
+                    $('#satuan').html(html);
+                    $('#harga_jual').val('');
+                    $('#satuan_id').val('');
+                });
+            }).on('select2:close', function() {
+                $('#satuan').focus();
+            });
+
+            $('#satuan').change(function() {
+                const selected = $(this).find(':selected');
+                const harga = selected.data('harga') || 0;
+                const id = selected.data('id') || 0;
+                $('#harga_jual').val(formatRupiah(harga));
+                $('#satuan_id').val(id);
+            }).on('select2:close', function() {
+                $('#jumlah').focus();
+            });;
+
+
             // Saat pelanggan dipilih
-            $('#kode_pelanggan').on('select2:select', function () {
+            $('#kode_pelanggan').on('select2:select', function() {
                 const kode = $(this).val();
                 localStorage.setItem('kode_pelanggan', kode);
 
                 $('#no_faktur').html('<option value="">Loading...</option>');
-                $.get(`/getFakturByPelanggan/${kode}`, function (res) {
+                $.get(`/getFakturByPelanggan/${kode}`, function(res) {
                     let opsi = '<option value="">Pilih No Faktur</option>';
                     res.forEach(f => {
                         opsi += `<option value="${f.no_faktur}">${f.no_faktur}</option>`;
@@ -188,75 +307,173 @@
                 });
             });
 
-            // Saat faktur dipilih
-            $('#no_faktur').on('change', function () {
-                const noFaktur = $(this).val();
-                if (!noFaktur) return;
-                localStorage.setItem('no_faktur', noFaktur);
-
-                $.get(`/getDetailFakturPenjualan/${noFaktur}`, function (res) {
-                    let html = '';
-                    keranjangRetur = [];
-
-                    res.detail.forEach((item, i) => {
-                        const hargaDefault = formatRupiah(item.harga);
-                        html += `
-                        <tr>
-                            <td class="text-center">${i + 1}</td>
-                            <td>${item.kode_barang}</td>
-                            <td>${item.nama_barang}</td>
-                            <td><input type="number" class="form-control form-control-sm text-end qtyRetur"
-                                data-kode="${item.kode_barang}" max="${item.qty}" min="1"></td>
-                            <td><input type="text" class="form-control form-control-sm text-end hargaRetur"
-                                value="${hargaDefault}"></td>
-                            <td class="text-end subtotal">Rp0</td>
-                        </tr>`;
-                    });
-
-                    $('#tabelRetur tbody').html(html);
-
-                    if (savedKeranjang) {
-                        const data = JSON.parse(savedKeranjang);
-                        data.forEach(k => {
-                            const row = $(`#tabelRetur tbody tr`).filter((i, el) => $(el).find('td').eq(1).text() === k.kode_barang);
-                            row.find('.qtyRetur').val(k.qty);
-                            row.find('.hargaRetur').val(formatRupiah(k.harga));
-                        });
-                    }
-
-                    hitungTotalRetur();
-                });
-            });
-
-            $(document).on('input', '.hargaRetur', function () {
+            $(document).on('input', '.hargaRetur', function() {
                 let raw = parseRupiah($(this).val());
                 $(this).val(formatRupiah(raw));
             });
 
-            $(document).on('input change', '.qtyRetur, .hargaRetur', function () {
+            $(document).on('input change', '.qtyRetur, .hargaRetur', function() {
                 hitungTotalRetur();
             });
 
-            $(document).on('click', '.btn-hapus', function () {
+            $(document).on('click', '.btn-hapus', function() {
                 $(this).closest('tr').remove();
                 hitungTotalRetur();
             });
+
+
+            // $(document).on('input', '#jumlah', function() {
+            //     let val = $(this).val().trim();
+            //     if (val === '' || isNaN(parseFloat(val))) return;
+
+            //     const num = parseFloat(val).toFixed(2);
+            //     if (val !== num) {
+            //         $(this).val(num);
+            //     }
+            // });
+            $(document).on('input', '#jumlah, #harga_jual', function() {
+                const qty = parseFloat($('#jumlah').val().trim()) || 0;
+                const harga = parseRupiah($('#harga_jual').val());
+                const total = qty * harga;
+                $('#total').val(formatRupiah(total));
+            });
+
+            $('#satuan').on('select2:close', function() {
+                $('#jumlah').focus();
+            });
+
+            // Saat input harga jual, format otomatis
+            $(document).on('input', '#harga_jual', function() {
+                const val = $(this).val();
+                $(this).val(formatRupiah(parseRupiah(val)));
+            });
+
+            $(document).on('keydown', '#jumlah', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    simpanKeranjang();
+                }
+            });
+            let clickCount = 0;
+            let clickTimer = null;
+
+            $(document).on('click', '#tabelRetur tbody tr', function() {
+                clickCount++;
+
+                if (clickCount === 3) {
+                    Swal.fire({
+                        title: 'Hapus item?',
+                        text: 'Item ini akan dihapus dari keranjang',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, hapus',
+                        cancelButtonText: 'Batal'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $(this).remove();
+                            hitungTotalRetur();
+                        }
+                    });
+                    clickCount = 0;
+                    clearTimeout(clickTimer);
+                }
+
+                // reset hitungan kalau lewat 400ms tanpa klik berikutnya
+                clearTimeout(clickTimer);
+                clickTimer = setTimeout(function() {
+                    clickCount = 0;
+                }, 400);
+            });
+
+            function simpanKeranjang() {
+                const kodeEl = $('#kode_barang');
+                const satuanEl = $('#satuan');
+                const hargaEl = $('#harga_jual');
+                const jumlahEl = $('#jumlah');
+                const totalEl = $('#total');
+
+                const kode = kodeEl.val();
+                const nama = kodeEl.find('option:selected').text();
+                const satuan = satuanEl.val();
+                const satuanText = satuanEl.find('option:selected').text();
+                const qty = parseFloat(jumlahEl.val().trim()) || 0;
+                const harga = parseRupiah(hargaEl.val());
+                const subtotal = qty * harga;
+
+                if (!kode || !satuan || qty <= 0 || harga <= 0) {
+                    Swal.fire('Lengkapi data barang terlebih dahulu!', '', 'warning');
+                    return;
+                }
+
+                // Cek duplikasi barang + satuan
+                const exists = $('#tabelRetur tbody tr').filter(function() {
+                    const trKode = $(this).find('.qtyRetur').data('kode');
+                    const trSatuan = $(this).find('td').eq(2).text().split(' (')[1]?.replace(')', '');
+                    return trKode === kode && trSatuan === satuan;
+                });
+
+                if (exists.length > 0) {
+                    Swal.fire('Barang ini sudah ditambahkan!', '', 'info');
+                    return;
+                }
+
+                // Tambahkan ke tabel
+                const newRow = `
+                        <tr>
+                            <td class="text-center">${$('#tabelRetur tbody tr').length + 1}</td>
+                            <td>${kode}</td>
+                            <td>${nama} (${satuanText})</td>
+                            <td>
+                                <input type="text" step="0.01" class="form-control form-control-sm text-end qtyRetur"
+                                    value="${qty.toFixed(2)}" data-kode="${kode}" max="${qty.toFixed(2)}" min="0.01">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm text-end hargaRetur"
+                                    value="${formatRupiah(harga)}">
+                            </td>
+                            <td class="text-end subtotal">${formatRupiah(subtotal)}</td>
+                        </tr>
+                    `;
+                $('#tabelRetur tbody').append(newRow);
+
+                // Reset input
+                kodeEl.val(null).trigger('change');
+                satuanEl.html('<option value="">Satuan</option>');
+                hargaEl.val('');
+                jumlahEl.val('');
+                totalEl.val('');
+
+                // Update total
+                hitungTotalRetur();
+
+                // Fokus kembali ke pencarian barang
+                setTimeout(() => $('#kode_barang').focus(), 100);
+            }
 
             function hitungTotalRetur() {
                 let total = 0;
                 keranjangRetur = [];
 
-                $('#tabelRetur tbody tr').each(function () {
+                $('#tabelRetur tbody tr').each(function() {
                     const qtyInput = $(this).find('.qtyRetur');
                     const hargaInput = $(this).find('.hargaRetur');
 
-                    let qty = parseInt(qtyInput.val()) || 0;
-                    const maxQty = parseInt(qtyInput.attr('max')) || 0;
-                    if (qty > maxQty) {
-                        Swal.fire('Qty melebihi jumlah faktur!', '', 'warning');
-                        qty = maxQty;
-                        qtyInput.val(maxQty);
-                    }
+                    // ✅ Gunakan parseFloat untuk baca desimal
+                    let qty = parseFloat(qtyInput.val()) || 0;
+                    const maxQty = parseFloat(qtyInput.attr('max')) || 0;
+
+                    // Validasi qty desimal
+                    // if (qty > maxQty) {
+                    //     Swal.fire('Qty melebihi jumlah faktur!', '', 'warning');
+                    //     qty = maxQty;
+                    //     qtyInput.val(maxQty.toFixed(2));
+                    // }
+
+                    // if (qty < 0.01) {
+                    //     Swal.fire('Qty minimal 0.01!', '', 'warning');
+                    //     qty = 0.01;
+                    //     qtyInput.val(0.01);
+                    // }
 
                     const harga = parseRupiah(hargaInput.val());
                     const kode = qtyInput.data('kode');
@@ -266,7 +483,13 @@
                     $(this).find('.subtotal').text(formatRupiah(subtotal));
 
                     if (qty > 0) {
-                        keranjangRetur.push({ kode_barang: kode, nama_barang, qty, harga, subtotal });
+                        keranjangRetur.push({
+                            kode_barang: kode,
+                            nama_barang,
+                            qty: parseFloat(qty.toFixed(2)), // simpan 2 angka desimal
+                            harga,
+                            subtotal
+                        });
                         total += subtotal;
                     }
                 });
@@ -277,7 +500,7 @@
                 localStorage.setItem('keranjang_retur', JSON.stringify(keranjangRetur));
             }
 
-            $('form').on('submit', function (e) {
+            $('form').on('submit', function(e) {
                 const pelanggan = $('#kode_pelanggan').val();
                 const faktur = $('#no_faktur').val();
                 const jenis = $('#jenis_retur').val();
@@ -295,7 +518,6 @@
             });
 
         });
-
     </script>
 
 @endsection

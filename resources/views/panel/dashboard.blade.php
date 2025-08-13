@@ -20,7 +20,7 @@
                 'b.nama_barang',
                 's.nama_supplier',
                 'bs.satuan',
-                DB::raw('SUM(d.qty) as total_terjual')
+                DB::raw('SUM(d.qty) as total_terjual'),
             )
             ->where('p.batal', 0)
             ->groupBy('d.kode_barang', 'b.nama_barang', 's.nama_supplier', 'bs.satuan')
@@ -41,15 +41,10 @@
             ->sum('grand_total');
 
         // Jumlah faktur
-        $jumlahFaktur = DB::table('penjualan')
-            ->whereYear('tanggal', $tahunIni)
-            ->count();
+        $jumlahFaktur = DB::table('penjualan')->whereYear('tanggal', $tahunIni)->count();
 
         // Faktur batal
-        $fakturBatal = DB::table('penjualan')
-            ->where('batal', 1)
-            ->whereYear('tanggal', $tahunIni)
-            ->count();
+        $fakturBatal = DB::table('penjualan')->where('batal', 1)->whereYear('tanggal', $tahunIni)->count();
 
         // Format rupiah
         function formatRupiah($angka)
@@ -58,8 +53,18 @@
         }
 
         $dataKartu = [
-            ['title' => 'Penjualan Hari Ini', 'icon' => 'bi-cash-coin', 'value' => formatRupiah($penjualanHariIni), 'bg' => 'success'],
-            ['title' => 'Penjualan Bulan Ini', 'icon' => 'bi-calendar-range', 'value' => formatRupiah($penjualanBulanIni), 'bg' => 'primary'],
+            [
+                'title' => 'Penjualan Hari Ini',
+                'icon' => 'bi-cash-coin',
+                'value' => formatRupiah($penjualanHariIni),
+                'bg' => 'success',
+            ],
+            [
+                'title' => 'Penjualan Bulan Ini',
+                'icon' => 'bi-calendar-range',
+                'value' => formatRupiah($penjualanBulanIni),
+                'bg' => 'primary',
+            ],
             ['title' => 'Jumlah Faktur', 'icon' => 'bi-receipt', 'value' => $jumlahFaktur, 'bg' => 'warning'],
             ['title' => 'Faktur Batal', 'icon' => 'bi-x-circle', 'value' => $fakturBatal, 'bg' => 'danger'],
         ];
@@ -93,17 +98,39 @@
             ->get();
         $stokMinim = DB::table('barang')
             ->leftJoin('barang_satuan', function ($q) {
-                $q->on('barang.kode_barang', '=', 'barang_satuan.kode_barang')
-                    ->where('barang_satuan.isi', 1);
+                $q->on('barang.kode_barang', '=', 'barang_satuan.kode_barang')->where('barang_satuan.isi', 1);
             })
-            ->leftJoin(DB::raw("( SELECT kode_barang, SUM(qty) AS saldo_awal FROM saldo_awal_gs WHERE bulan = {$bulanIni} AND tahun = {$tahunIni} GROUP BY kode_barang ) AS sa"), 'barang.kode_barang', '=', 'sa.kode_barang')
-            ->leftJoin(DB::raw("(SELECT bs.kode_barang,SUM(CASE WHEN jenis_pemasukan = 'Pembelian' THEN mbd.qty ELSE 0 END) AS pembelian, SUM(CASE WHEN jenis_pemasukan = 'Retur Penjualan' THEN mbd.qty ELSE 0 END) AS retur_penjualan, SUM(CASE WHEN jenis_pemasukan = 'Penyesuaian' THEN mbd.qty ELSE 0 END) AS penyesuaian_masuk, SUM(CASE WHEN jenis_pemasukan = 'Lainnya' THEN mbd.qty ELSE 0 END) AS lainnya_masuk FROM mutasi_barang_masuk_detail mbd JOIN mutasi_barang_masuk mb ON mb.kode_transaksi = mbd.kode_transaksi JOIN barang_satuan bs ON bs.id = mbd.satuan_id WHERE mb.kondisi = 'gs' AND MONTH(mb.tanggal) = {$bulanIni} AND YEAR(mb.tanggal) = {$tahunIni} GROUP BY bs.kode_barang ) AS masuk"), 'barang.kode_barang', '=', 'masuk.kode_barang')
-            ->leftJoin(DB::raw("(SELECT bs.kode_barang,SUM(CASE WHEN jenis_pengeluaran = 'Penjualan' THEN mkd.qty_konversi ELSE 0 END) AS penjualan, SUM(CASE WHEN jenis_pengeluaran = 'Retur Pembelian' THEN mkd.qty_konversi ELSE 0 END) AS retur_pembelian,SUM(CASE WHEN jenis_pengeluaran = 'Penyesuaian' THEN mkd.qty_konversi ELSE 0 END) AS penyesuaian_keluar, SUM(CASE WHEN jenis_pengeluaran = 'Lainnya' THEN mkd.qty_konversi ELSE 0 END) AS lainnya_keluar FROM mutasi_barang_keluar_detail mkd JOIN mutasi_barang_keluar mk ON mk.kode_transaksi = mkd.kode_transaksi JOIN barang_satuan bs ON bs.id = mkd.satuan_id WHERE mk.kondisi = 'gs' AND MONTH(mk.tanggal) = {$bulanIni} AND YEAR(mk.tanggal) = {$tahunIni} GROUP BY bs.kode_barang ) AS keluar"), 'barang.kode_barang', '=', 'keluar.kode_barang')
+            ->leftJoin(
+                DB::raw(
+                    "( SELECT kode_barang, SUM(qty) AS saldo_awal FROM saldo_awal_gs WHERE bulan = {$bulanIni} AND tahun = {$tahunIni} GROUP BY kode_barang ) AS sa",
+                ),
+                'barang.kode_barang',
+                '=',
+                'sa.kode_barang',
+            )
+            ->leftJoin(
+                DB::raw(
+                    "(SELECT bs.kode_barang,SUM(CASE WHEN jenis_pemasukan = 'Pembelian' THEN mbd.qty ELSE 0 END) AS pembelian, SUM(CASE WHEN jenis_pemasukan = 'Retur Penjualan' THEN mbd.qty ELSE 0 END) AS retur_penjualan, SUM(CASE WHEN jenis_pemasukan = 'Penyesuaian' THEN mbd.qty ELSE 0 END) AS penyesuaian_masuk, SUM(CASE WHEN jenis_pemasukan = 'Lainnya' THEN mbd.qty ELSE 0 END) AS lainnya_masuk FROM mutasi_barang_masuk_detail mbd JOIN mutasi_barang_masuk mb ON mb.kode_transaksi = mbd.kode_transaksi JOIN barang_satuan bs ON bs.id = mbd.satuan_id WHERE mb.kondisi = 'gs' AND MONTH(mb.tanggal) = {$bulanIni} AND YEAR(mb.tanggal) = {$tahunIni} GROUP BY bs.kode_barang ) AS masuk",
+                ),
+                'barang.kode_barang',
+                '=',
+                'masuk.kode_barang',
+            )
+            ->leftJoin(
+                DB::raw(
+                    "(SELECT bs.kode_barang,SUM(CASE WHEN jenis_pengeluaran = 'Penjualan' THEN mkd.qty_konversi ELSE 0 END) AS penjualan, SUM(CASE WHEN jenis_pengeluaran = 'Retur Pembelian' THEN mkd.qty_konversi ELSE 0 END) AS retur_pembelian,SUM(CASE WHEN jenis_pengeluaran = 'Penyesuaian' THEN mkd.qty_konversi ELSE 0 END) AS penyesuaian_keluar, SUM(CASE WHEN jenis_pengeluaran = 'Lainnya' THEN mkd.qty_konversi ELSE 0 END) AS lainnya_keluar FROM mutasi_barang_keluar_detail mkd JOIN mutasi_barang_keluar mk ON mk.kode_transaksi = mkd.kode_transaksi JOIN barang_satuan bs ON bs.id = mkd.satuan_id WHERE mk.kondisi = 'gs' AND MONTH(mk.tanggal) = {$bulanIni} AND YEAR(mk.tanggal) = {$tahunIni} GROUP BY bs.kode_barang ) AS keluar",
+                ),
+                'barang.kode_barang',
+                '=',
+                'keluar.kode_barang',
+            )
             ->select(
                 'barang.kode_barang',
                 'barang.nama_barang',
                 'barang_satuan.satuan',
-                DB::raw('COALESCE(saldo_awal, 0)+ COALESCE(pembelian, 0) + COALESCE(retur_penjualan, 0) + COALESCE(penyesuaian_masuk, 0) + COALESCE(lainnya_masuk, 0) - COALESCE(penjualan, 0) - COALESCE(retur_pembelian, 0) - COALESCE(penyesuaian_keluar, 0) - COALESCE(lainnya_keluar, 0) AS saldo_akhir')
+                DB::raw(
+                    'COALESCE(saldo_awal, 0)+ COALESCE(pembelian, 0) + COALESCE(retur_penjualan, 0) + COALESCE(penyesuaian_masuk, 0) + COALESCE(lainnya_masuk, 0) - COALESCE(penjualan, 0) - COALESCE(retur_pembelian, 0) - COALESCE(penyesuaian_keluar, 0) - COALESCE(lainnya_keluar, 0) AS saldo_akhir',
+                ),
             )
             ->having('saldo_akhir', '<=', 10)
             ->orderBy('saldo_akhir')
@@ -150,7 +177,7 @@
                         @forelse ($topPelanggan as $pel)
                             <li class="list-group-item d-flex justify-content-between">
                                 <span><i class="bi bi-person-badge me-2 text-secondary"></i>
-                                    {{ $pel->kode_pelanggan . " - " . $pel->nama_pelanggan }}</span>
+                                    {{ $pel->kode_pelanggan . ' - ' . $pel->nama_pelanggan }}</span>
                                 <span class="badge bg-success">{{ formatRupiah($pel->total_belanja) }}</span>
                             </li>
                         @empty
@@ -243,7 +270,7 @@
                 scales: {
                     y: {
                         ticks: {
-                            callback: function (value) {
+                            callback: function(value) {
                                 return 'Rp ' + value.toLocaleString('id-ID');
                             }
                         }

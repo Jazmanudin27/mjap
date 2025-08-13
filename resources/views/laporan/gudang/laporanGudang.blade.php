@@ -17,15 +17,15 @@
                                 <div class="nav flex-column nav-pills me-3" id="tab-pesediaan" role="tablist"
                                     aria-orientation="vertical">
                                     <button class="nav-link text-start active" id="tab-mutasi" data-bs-toggle="pill"
-                                        data-bs-target="#panel-mutasi" type="button" role="tab" aria-controls="panel-mutasi"
-                                        aria-selected="true">
+                                        data-bs-target="#panel-mutasi" type="button" role="tab"
+                                        aria-controls="panel-mutasi" aria-selected="true">
                                         Laporan Mutasi Barang
                                     </button>
-                                    {{-- <button class="nav-link text-start" id="tab-persediaan" data-bs-toggle="pill"
-                                        data-bs-target="#panel-persediaan" type="button" role="tab"
-                                        aria-controls="panel-persediaan" aria-selected="false">
-                                        Laporan Persediaan
-                                    </button> --}}
+                                    <button class="nav-link text-start" id="tab-kartustok" data-bs-toggle="pill"
+                                        data-bs-target="#panel-kartustok" type="button" role="tab"
+                                        aria-controls="panel-kartustok" aria-selected="false">
+                                        Laporan Kartu Stok
+                                    </button>
                                     <button class="nav-link text-start" id="tab-gs" data-bs-toggle="pill"
                                         data-bs-target="#panel-gs" type="button" role="tab" aria-controls="panel-gs"
                                         aria-selected="false">
@@ -46,10 +46,10 @@
                                         aria-labelledby="tab-mutasi">
                                         @include('laporan.gudang.laporanMutasiBarang')
                                     </div>
-                                    {{-- <div class="tab-pane fade" id="panel-persediaan" role="tabpanel"
-                                        aria-labelledby="tab-persediaan">
-                                        @include('laporan.gudang.laporanPersediaan')
-                                    </div> --}}
+                                    <div class="tab-pane fade" id="panel-kartustok" role="tabpanel"
+                                        aria-labelledby="tab-kartustok">
+                                        @include('laporan.gudang.laporanKartuStok')
+                                    </div>
                                     <div class="tab-pane fade" id="panel-gs" role="tabpanel" aria-labelledby="tab-gs">
                                         @include('laporan.gudang.laporanPersediaanGS')
                                     </div>
@@ -65,8 +65,10 @@
         </div>
 
         <script>
-            $(document).ready(function () {
-                $('.select2').select2({ width: '100%' });
+            $(document).ready(function() {
+                $('.select2').select2({
+                    width: '100%'
+                });
             });
         </script>
-@endsection
+    @endsection

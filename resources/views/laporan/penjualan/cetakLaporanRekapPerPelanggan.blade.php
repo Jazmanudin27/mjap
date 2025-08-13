@@ -37,9 +37,9 @@
                     <td class="text-center">{{ $d->total_transaksi }}</td>
                     <td class="text-center">{{ $d->jumlah_kredit }}</td>
                     <td class="text-center">{{ $d->jumlah_tunai }}</td>
-                    <td class="text-end">{{ rupiah($d->total) }}</td>
-                    <td class="text-end">{{ rupiah($d->diskon) }}</td>
-                    <td class="text-end">{{ rupiah($d->grand_total) }}</td>
+                    <td class="text-end">{{ formatAngka($d->total) }}</td>
+                    <td class="text-end">{{ formatAngka($d->diskon) }}</td>
+                    <td class="text-end">{{ formatAngka($d->grand_total) }}</td>
                 </tr>
                 @php
                     $total += $d->total;
@@ -61,9 +61,9 @@
                 <td class="text-center fw-bold">{{ $total_faktur }}</td>
                 <td class="text-center fw-bold">{{ $total_kredit }}</td>
                 <td class="text-center fw-bold">{{ $total_tunai }}</td>
-                <td class="text-end fw-bold">{{ rupiah($total) }}</td>
-                <td class="text-end fw-bold">{{ rupiah($diskon) }}</td>
-                <td class="text-end fw-bold">{{ rupiah($grand_total) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($total) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($diskon) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($grand_total) }}</td>
             </tr>
         </tfoot>
     </table>

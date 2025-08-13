@@ -10,8 +10,7 @@
     <style>
         body {
             font-family: Tahoma, sans-serif;
-            font-size: 10.5px;
-            zoom: 95%;
+            font-size: 12px;
         }
 
         .sheet {
@@ -120,8 +119,8 @@
             <thead>
                 <tr>
                     {{-- <th rowspan="2">KODE</th> --}}
-                    <th rowspan="2">PELANGGAN</th>
                     <th rowspan="2">NO. FAKTUR</th>
+                    <th rowspan="2">PELANGGAN</th>
                     <th colspan="2">PENJUALAN</th>
                     <th colspan="4">PEMBAYARAN</th>
                 </tr>
@@ -145,7 +144,7 @@
                     $totalGiro = 0;
                     $totalVoucher = 0;
                 @endphp
-                @foreach($data as $d)
+                @foreach ($data as $d)
                     @php
                         $isBatal = $d->batal == 1;
                         $rowClass = $isBatal ? 'batal' : '';
@@ -158,8 +157,8 @@
                     @endphp
                     <tr class="{{ $rowClass }}">
                         {{-- <td>{{ $d->kode_pelanggan }}</td> --}}
-                        <td>{{ $d->nama_pelanggan }}</td>
                         <td>{{ $d->no_faktur }}</td>
+                        <td>{{ $d->nama_pelanggan }}</td>
                         <td class="text-right">{{ rupiahKosong($tunai) }}</td>
                         <td class="text-right">{{ rupiahKosong($kredit) }}</td>
                         <td class="text-right">{{ rupiahKosong($titipan) }}</td>
@@ -195,7 +194,7 @@
                     <td class="text-right">{{ rupiahKosong($totalGiro) }}</td>
                     <td class="text-right">{{ rupiahKosong($totalVoucher) }}</td>
                 </tr>
-                @if($batalTunai > 0 || $batalKredit > 0)
+                @if ($batalTunai > 0 || $batalKredit > 0)
                     <tr class="fw-bold" style="background-color: #ffe5e5;">
                         <td colspan="2">BATAL</td>
                         <td class="text-right text-danger">{{ rupiahKosong($batalTunai) }}</td>

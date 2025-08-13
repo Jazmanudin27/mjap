@@ -167,7 +167,7 @@ class PermissionHelper
 
 function rupiahKosong($nilai)
 {
-    return $nilai != 0 ? 'Rp ' . number_format($nilai, 0, ',', '.') : '';
+    return number_format($nilai, 0, ',', '.');
 }
 
 if (!function_exists('bulan_indo')) {
@@ -192,19 +192,42 @@ if (!function_exists('bulan_indo')) {
 
 }
 
+
+if (!function_exists('getWilayah')) {
+    function getWilayah()
+    {
+        $query = DB::table('wilayah');
+        return $query->orderBy('nama_wilayah')->get();
+    }
+}
+
+
 if (!function_exists('getSales')) {
     function getSales()
     {
         $user = Auth::user();
 
-        $query = DB::table('hrd_karyawan')
-            ->where('id_jabatan', '1');
+        $query = DB::table('users')
+            ->select('*', 'users.name as nama_lengkap')
+            ->where('team', '!=', '');
 
-        if ($user->role == 'spv sales') {
-            $query->where('divisi', $user->team);
-        }
+        // if ($user->role == 'spv sales') {
+        //     $query->where('divisi', $user->nik);
+        // }
 
-        return $query->orderBy('nama_lengkap')->get();
+        return $query->orderBy('name')->get();
+    }
+}
+
+if (!function_exists('getKonversiSatuan')) {
+    function getKonversiSatuan($kodeBarang)
+    {
+        $satuans = DB::table('barang_satuan')
+            ->where('kode_barang', $kodeBarang)
+            ->orderByDesc('isi')
+            ->get();
+
+        return $satuans->pluck('isi', 'satuan')->toArray();
     }
 }
 
@@ -213,29 +236,41 @@ if (!function_exists('konversiQtySatuan')) {
     {
         $result = [];
         foreach ($satuanList as $s) {
+            if ($s->isi == 1) {
+                if ($qty > 0) {
+                    $result[] = $qty . ' ' . $s->satuan;
+                }
+                break;
+            }
+
             $jumlah = floor($qty / $s->isi);
             if ($jumlah > 0) {
                 $result[] = $jumlah . ' ' . $s->satuan;
                 $qty -= $jumlah * $s->isi;
             }
         }
-        if ($qty > 0) {
-            $result[] = $qty . ' PCS'; // PCS = satuan terkecil
-        }
+
         return implode(', ', $result);
     }
 }
-
 if (!function_exists('getSisaLimitKreditPelanggan')) {
     function getSisaLimitKreditPelanggan($kodePelanggan)
     {
-        // Ambil limit kredit yang disetujui
+        // Ambil limit kredit dari pengajuan yang disetujui
         $limitDisetujui = DB::table('pengajuan_limit_kredit')
             ->where('kode_pelanggan', $kodePelanggan)
             ->where('status', 'disetujui')
-            ->orderByDesc('tanggal') // Pakai limit terbaru
+            ->orderByDesc('tanggal') // Ambil yang terbaru
             ->value('nilai_disetujui');
 
+        // Jika tidak ada pengajuan disetujui, ambil dari tabel pelanggan
+        if (!$limitDisetujui) {
+            $limitDisetujui = DB::table('pelanggan')
+                ->where('kode_pelanggan', $kodePelanggan)
+                ->value('limit_pelanggan');
+        }
+
+        // Jika tetap tidak ada data, return 0
         if (!$limitDisetujui) {
             return 0;
         }
@@ -263,3 +298,4 @@ if (!function_exists('getSisaLimitKreditPelanggan')) {
         return $sisaLimit > 0 ? $sisaLimit : 0;
     }
 }
+

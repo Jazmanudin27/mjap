@@ -22,12 +22,107 @@ class LaporanGudangController extends Controller
             ->get();
 
         $data['barangs'] = DB::table('barang')
-            ->where('status', '1')
+
             ->orderBy('nama_barang')
             ->get();
 
         return view('laporan.gudang.laporanGudang', $data);
     }
+
+    public function cetakKartuStok(Request $request)
+    {
+        $tanggal_awal = $request->tanggal_awal ?? date('Y-m-01');
+        $tanggal_akhir = $request->tanggal_akhir ?? date('Y-m-t');
+        $kode_barang = $request->kode_barang;
+        $nama_barang = null;
+
+        if (!empty($kode_barang)) {
+            $nama_barang = DB::table('barang')
+                ->where('kode_barang', $kode_barang)
+                ->value('nama_barang');
+        }
+
+        $saldoawal = DB::table('saldo_awal_gs')
+            ->where('kode_barang', $kode_barang)
+            ->where('bulan', $request->bulan)
+            ->where('tahun', $request->tahun)
+            ->sum('qty');
+
+        $sql ="
+            SELECT x.tanggal, x.kode_barang, x.no_faktur, x.kode_sales, x.nama_sales,
+                SUM(x.pembelian) AS pembelian,
+                SUM(x.retur_pengganti) AS retur_pengganti,
+                SUM(x.repack) AS repack,
+                SUM(x.penyesuaian_masuk) AS penyesuaian_masuk,
+                SUM(x.lainnya_masuk) AS lainnya_masuk,
+                SUM(x.penjualan) AS penjualan,
+                SUM(x.reject_gudang) AS reject_gudang,
+                SUM(x.penyesuaian_keluar) AS penyesuaian_keluar,
+                SUM(x.lainnya_keluar) AS lainnya_keluar
+            FROM (
+                -- Mutasi masuk
+                SELECT mb.tanggal, bs.kode_barang, mb.no_faktur,
+                    NULL AS kode_sales, NULL AS nama_sales,
+                    CASE WHEN mb.jenis_pemasukan = 'Pembelian' THEN mbd.qty_konversi ELSE 0 END AS pembelian,
+                    CASE WHEN mb.jenis_pemasukan = 'Retur Pengganti' THEN mbd.qty_konversi ELSE 0 END AS retur_pengganti,
+                    CASE WHEN mb.jenis_pemasukan = 'Repack' THEN mbd.qty_konversi ELSE 0 END AS repack,
+                    CASE WHEN mb.jenis_pemasukan = 'Penyesuaian' THEN mbd.qty_konversi ELSE 0 END AS penyesuaian_masuk,
+                    CASE WHEN mb.jenis_pemasukan = 'Lainnya' THEN mbd.qty_konversi ELSE 0 END AS lainnya_masuk,
+                    0 AS penjualan, 0 AS reject_gudang, 0 AS penyesuaian_keluar, 0 AS lainnya_keluar
+                FROM mutasi_barang_masuk mb
+                JOIN mutasi_barang_masuk_detail mbd ON mb.kode_transaksi = mbd.kode_transaksi
+                JOIN barang_satuan bs ON bs.id = mbd.satuan_id
+                WHERE mb.kondisi = 'gs' AND mb.tanggal BETWEEN ? AND ?
+                " . (!empty($kode_barang) ? " AND bs.kode_barang = ? " : "") . "
+
+                UNION ALL
+
+                -- Mutasi keluar
+                SELECT mk.tanggal, bs.kode_barang, mk.no_faktur,
+                    pj.kode_sales, k.nama_lengkap AS nama_sales,
+                    0,0,0,0,0,
+                    CASE WHEN mk.jenis_pengeluaran = 'Penjualan' THEN mkd.qty_konversi ELSE 0 END AS penjualan,
+                    CASE WHEN mk.jenis_pengeluaran = 'Reject' THEN mkd.qty_konversi ELSE 0 END AS reject_gudang,
+                    CASE WHEN mk.jenis_pengeluaran = 'Penyesuaian' THEN mkd.qty_konversi ELSE 0 END AS penyesuaian_keluar,
+                    CASE WHEN mk.jenis_pengeluaran = 'Lainnya' THEN mkd.qty_konversi ELSE 0 END AS lainnya_keluar
+                FROM mutasi_barang_keluar mk
+                JOIN mutasi_barang_keluar_detail mkd ON mk.kode_transaksi = mkd.kode_transaksi
+                JOIN barang_satuan bs ON bs.id = mkd.satuan_id
+                LEFT JOIN penjualan pj ON pj.no_faktur = mk.no_faktur
+                LEFT JOIN hrd_karyawan k ON k.nik = pj.kode_sales
+                WHERE mk.kondisi = 'gs' AND mk.tanggal BETWEEN ? AND ?
+                " . (!empty($kode_barang) ? " AND bs.kode_barang = ? " : "") . "
+            ) AS x
+            GROUP BY x.tanggal, x.kode_barang, x.no_faktur, x.kode_sales, x.nama_sales
+            ORDER BY x.tanggal ASC
+        ";
+        $bindings = [$tanggal_awal, $tanggal_akhir];
+        if (!empty($kode_barang))
+            $bindings[] = $kode_barang;
+        $bindings[] = $tanggal_awal;
+        $bindings[] = $tanggal_akhir;
+        if (!empty($kode_barang))
+            $bindings[] = $kode_barang;
+
+        $rows = DB::select($sql, $bindings);
+        $data = collect($rows);
+
+        // satuan untuk barang (dipakai kalau mau konversi)
+        $satuan_barang = DB::table('barang_satuan')
+            ->where('kode_barang', $kode_barang)
+            ->orderBy('isi', 'desc')
+            ->get()
+            ->groupBy('kode_barang');
+        return view('laporan.gudang.cetakKartuStok', [
+            'data' => $data,
+            'satuan_barang' => $satuan_barang,
+            'saldoawal' => $saldoawal,
+            'nama_barang' => $nama_barang,
+            'tanggal_awal' => $tanggal_awal,
+            'tanggal_akhir' => $tanggal_akhir,
+        ]);
+    }
+
 
     public function cetakLaporanPersediaanGS(Request $request)
     {
@@ -58,8 +153,6 @@ class LaporanGudangController extends Controller
                 WHERE bulan = {$bulan} AND tahun = {$tahun}
                 GROUP BY kode_barang
             ) AS sa"), 'barang.kode_barang', '=', 'sa.kode_barang')
-
-            // PENERIMAAN
             ->leftJoin(DB::raw("(
                 SELECT bs.kode_barang,
                     SUM(CASE WHEN jenis_pemasukan = 'Pembelian' THEN mbd.qty_konversi ELSE 0 END) AS pembelian,
@@ -90,6 +183,7 @@ class LaporanGudangController extends Controller
             ->select(
                 'barang.kode_barang',
                 'barang.nama_barang',
+                'barang.kode_item',
                 'barang.kategori',
                 'barang.merk',
                 'barang_satuan.satuan',
@@ -219,6 +313,10 @@ class LaporanGudangController extends Controller
             ->select(
                 'barang.kode_barang',
                 'barang.nama_barang',
+                'barang.kode_item',
+                'barang.kode_item',
+                'barang.kode_item',
+                'barang.kode_item',
                 'barang_satuan.satuan',
                 DB::raw('COALESCE(saldo_awal, 0) AS saldo_awal'),
                 DB::raw('COALESCE(retur_penjualan, 0) AS retur_penjualan'),
@@ -234,7 +332,16 @@ class LaporanGudangController extends Controller
             $query->where('barang.kode_supplier', $kode_supplier);
         }
 
-        $query->orderBy('barang.nama_barang');
+        $query->where(function ($q) {
+            $q->where('sa.saldo_awal', '>', 0)
+                ->orWhere('masuk.retur_penjualan', '>', 0)
+                ->orWhere('masuk.penyesuaian_masuk', '>', 0)
+                ->orWhere('masuk.lainnya_masuk', '>', 0)
+                ->orWhere('keluarReject.reject_gudang', '>', 0)
+                ->orWhere('keluar.retur_pembelian', '>', 0)
+                ->orWhere('keluar.penyesuaian_keluar', '>', 0)
+                ->orWhere('keluar.lainnya_keluar', '>', 0);
+        })->orderBy('barang.nama_barang');
         $data['data'] = $query->get();
 
         if ($request->has('export')) {
@@ -410,6 +517,8 @@ class LaporanGudangController extends Controller
         }
 
         $masuk = $queryMasuk->select(
+            'm.tanggal_diterima as tanggal_dikirim',
+            'm.catatan',
             'm.tanggal',
             'm.kode_transaksi',
             'm.kondisi',
@@ -446,6 +555,8 @@ class LaporanGudangController extends Controller
         }
 
         $keluar = $queryKeluar->select(
+            'k.tanggal_dikirim',
+            'k.catatan',
             'k.tanggal',
             'k.kode_transaksi',
             'k.kondisi',

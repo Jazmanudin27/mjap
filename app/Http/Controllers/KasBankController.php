@@ -46,22 +46,51 @@ class KasBankController extends Controller
     public function store(Request $request)
     {
         DB::table('keuangan_mutasi')->insert([
-            'tanggal'     => $request->tanggal,
-            'keterangan'  => $request->keterangan,
-            'tipe'        => $request->tipe,
-            'jumlah'      => (int) str_replace(['Rp', '.', ','], '', $request->jumlah),
-            'kode_bank'   => $request->kode_bank,
-            'id_user'     => Auth::user()->id ?? null,
-            'created_at'  => now(),
-            'updated_at'  => now(),
+            'tanggal' => $request->tanggal,
+            'keterangan' => $request->keterangan,
+            'tipe' => $request->tipe,
+            'jumlah' => (int) str_replace(['Rp', '.', ','], '', $request->jumlah),
+            'kode_bank' => $request->kode_bank,
+            'id_user' => Auth::user()->id ?? null,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
-        return redirect()->route('viewKasBank')->with('success', 'Transaksi berhasil disimpan.');
+        return redirect()->route('viewKasBank', [
+            'tanggal_dari' => $request->tanggal_dari,
+            'tanggal_sampai' => $request->tanggal_sampai,
+            'kode_bank' => $request->kode_bank,
+        ])->with('success', 'Transaksi berhasil disimpan.');
     }
 
-    public function delete($id)
+    public function update(Request $request)
+    {
+        DB::table('keuangan_mutasi')->where('id', $request->id_mutasi)->update([
+            'tanggal' => $request->tanggal,
+            'keterangan' => $request->keterangan,
+            'tipe' => $request->tipe,
+            'jumlah' => (int) str_replace(['Rp', '.', ','], '', $request->jumlah),
+            'kode_bank' => $request->kode_bank,
+            'id_user' => Auth::user()->id ?? null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()->route('viewKasBank', [
+            'tanggal_dari' => $request->tanggal_dari,
+            'tanggal_sampai' => $request->tanggal_sampai,
+            'kode_bank' => $request->kode_bank,
+        ])->with('success', 'Transaksi berhasil disimpan.');
+    }
+
+    public function delete(Request $request, $id)
     {
         DB::table('keuangan_mutasi')->where('id', $id)->delete();
-        return redirect()->route('viewKasBank')->with('success', 'Data berhasil dihapus.');
+
+        return redirect()->route('viewKasBank', [
+            'tanggal_dari' => $request->tanggal_dari,
+            'tanggal_sampai' => $request->tanggal_sampai,
+            'kode_bank' => $request->kode_bank,
+        ])->with('success', 'Data berhasil dihapus.');
     }
 }

@@ -79,7 +79,7 @@ class PenjualanController extends Controller
 
             ->orderByDesc('p.tanggal')
             ->orderByDesc('p.no_faktur')
-            ->paginate(10)
+            ->paginate(20)
             ->appends(request()->query());
         $data['sales'] = DB::table('hrd_karyawan')->where('id_jabatan', '1')->select('nik', 'nama_lengkap')->orderBy('nama_lengkap')->get();
         return view('penjualan.index', $data);
@@ -271,90 +271,62 @@ class PenjualanController extends Controller
             return back()->with('error', 'Keranjang penjualan masih kosong!')->withInput();
         }
 
-        if ($request->filled('no_faktur')) {
-            $noFaktur = $request->no_faktur;
-            $mode = 'edit';
-        } else {
-            $last = DB::table('penjualan')
-                ->whereMonth('tanggal', now()->month)
-                ->whereYear('tanggal', now()->year)
-                ->orderByDesc('no_faktur')
-                ->value('no_faktur');
-            $lastNumber = ($last && preg_match('/^(\d{4})-PJ-MJ-(\d{4})$/', $last, $m))
-                ? (int) $m[1] + 1 : 1;
-
-            $noFaktur = str_pad($lastNumber, 4, '0', STR_PAD_LEFT) . '-PJ-MJ-' . now()->format('my');
-            $mode = 'tambah';
-        }
-
         DB::beginTransaction();
         try {
-            if ($mode === 'edit') {
-                $kodeTransaksi = DB::table('mutasi_barang_keluar')
-                    ->where('no_faktur', $noFaktur)
-                    ->pluck('kode_transaksi');
-                if ($kodeTransaksi->isNotEmpty()) {
-                    DB::table('mutasi_barang_keluar_detail')
-                        ->whereIn('kode_transaksi', $kodeTransaksi)
-                        ->delete();
+            // Tentukan mode: tambah atau edit
+            $isEdit = $request->filled('no_faktur');
+            $noFaktur = $isEdit ? $request->no_faktur : null;
+
+            // Jika tambah, generate no_faktur baru
+            if (!$isEdit) {
+                $last = DB::table('penjualan')
+                    ->whereMonth('tanggal', now()->month)
+                    ->whereYear('tanggal', now()->year)
+                    ->orderByDesc('no_faktur')
+                    ->value('no_faktur');
+
+                $lastNumber = 1;
+                if ($last && preg_match('/^(\d{4})-PJ-MJ-(\d{4})$/', $last, $matches)) {
+                    $lastNumber = (int) $matches[1] + 1;
                 }
-                DB::table('mutasi_barang_keluar')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan_detail')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan_pembayaran')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan_pembayaran_transfer')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan_pembayaran_giro')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
+                $noFaktur = str_pad($lastNumber, 4, '0', STR_PAD_LEFT) . '-PJ-MJ-' . now()->format('my');
             }
 
-            if ($mode == 'edit') {
-                DB::table('penjualan')->insert([
-                    'no_faktur' => $noFaktur,
-                    'tanggal' => $request->tanggal,
-                    'kode_pelanggan' => $request->kode_pelanggan,
-                    'kode_sales' => $request->kode_sales,
-                    'jenis_transaksi' => $request->jenis_transaksi,
-                    'jenis_bayar' => $request->jenis_bayar,
-                    'keterangan' => $request->keterangan,
-                    'id_user' => $request->kode_sales,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+            // --- 1. Simpan/Update data utama penjualan ---
+            $dataPenjualan = [
+                'tanggal' => $request->tanggal,
+                'kode_pelanggan' => $request->kode_pelanggan,
+                'kode_sales' => $request->kode_sales,
+                'jenis_transaksi' => $request->jenis_transaksi,
+                'jenis_bayar' => $request->jenis_bayar,
+                'keterangan' => $request->keterangan,
+                'id_user' => $isEdit ? $request->kode_sales : Auth::user()->nik,
+                'updated_at' => now(),
+            ];
+
+            if (!$isEdit) {
+                $dataPenjualan['no_faktur'] = $noFaktur;
+                $dataPenjualan['created_at'] = now();
+                DB::table('penjualan')->insert($dataPenjualan);
             } else {
-                DB::table('penjualan')->insert([
-                    'no_faktur' => $noFaktur,
-                    'tanggal' => $request->tanggal,
-                    'kode_pelanggan' => $request->kode_pelanggan,
-                    'kode_sales' => $request->kode_sales,
-                    'jenis_transaksi' => $request->jenis_transaksi,
-                    'jenis_bayar' => $request->jenis_bayar,
-                    'keterangan' => $request->keterangan,
-                    'id_user' => Auth::user()->nik,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                DB::table('penjualan')
+                    ->where('no_faktur', $noFaktur)
+                    ->update($dataPenjualan);
             }
+
+
+            // --- 2. Update detail penjualan: Hapus dulu, lalu insert baru (lebih aman) ---
+            // Karena detail bisa berubah jumlah & jenis barang, lebih mudah hapus-insert
+            DB::table('penjualan_detail')->where('no_faktur', $noFaktur)->delete();
+
             $totalKotor = $totalDiskonAll = $totalBersih = 0;
             foreach ($keranjang as $item) {
                 $qty = (float) $item['jumlah'];
                 $harga = (int) str_replace('.', '', $item['harga_jual']);
-
                 $d1 = (float) ($item['diskon1_persen'] ?? 0);
                 $d2 = (float) ($item['diskon2_persen'] ?? 0);
                 $d3 = (float) ($item['diskon3_persen'] ?? 0);
                 $d4 = (float) ($item['diskon4_persen'] ?? 0);
-
                 $hargaD = round($harga * (1 - $d1 / 100) * (1 - $d2 / 100) * (1 - $d3 / 100) * (1 - $d4 / 100));
                 $subtotal = $harga * $qty;
                 $total = $hargaD * $qty;
@@ -383,21 +355,44 @@ class PenjualanController extends Controller
                 $totalBersih += $total;
             }
 
+            // Update total di header
             DB::table('penjualan')->where('no_faktur', $noFaktur)->update([
                 'total' => $totalKotor,
                 'diskon' => $totalDiskonAll,
                 'grand_total' => $totalBersih,
             ]);
 
-            if ($request->jenis_transaksi === 'K') {
-                $supplierTotals = [];
 
+            // --- 3. Update limit supplier (jika kredit) ---
+            if ($request->jenis_transaksi === 'K') {
+                // Kembalikan limit yang sebelumnya dipakai (jika edit)
+                if ($isEdit) {
+                    $oldSupplierTotals = DB::table('penjualan_detail')
+                        ->join('barang', 'barang.kode_barang', '=', 'penjualan_detail.kode_barang')
+                        ->where('penjualan_detail.no_faktur', $noFaktur)
+                        ->groupBy('barang.kode_supplier')
+                        ->select('barang.kode_supplier', DB::raw('SUM(penjualan_detail.total) as total'))
+                        ->pluck('total', 'kode_supplier');
+
+                    foreach ($oldSupplierTotals as $kodeSupplier => $totalDipakai) {
+                        DB::table('pengajuan_limit_supplier')
+                            ->where('kode_supplier', $kodeSupplier)
+                            ->whereIn('pengajuan_id', function ($q) use ($request) {
+                                $q->select('id')
+                                    ->from('pengajuan_limit_kredit')
+                                    ->where('kode_pelanggan', $request->kode_pelanggan);
+                            })
+                            ->increment('sisa_limit', $totalDipakai); // Kembalikan limit
+                    }
+                }
+
+                // Potong limit baru
+                $supplierTotals = [];
                 foreach ($keranjang as $item) {
                     $kodeSupplier = $item['kode_supplier'] ?? null;
                     if (!$kodeSupplier)
                         continue;
-
-                    $supplierTotals[$kodeSupplier] = ($supplierTotals[$kodeSupplier] ?? 0) + (int) str_replace('.', '', $item['total']);
+                    $supplierTotals[$kodeSupplier] = ($supplierTotals[$kodeSupplier] ?? 0) + $item['total'];
                 }
 
                 foreach ($supplierTotals as $kodeSupplier => $totalDipakai) {
@@ -412,60 +407,50 @@ class PenjualanController extends Controller
                 }
             }
 
-            // if ($request->jenis_bayar === 'tunai') {
-            //     DB::table('penjualan_pembayaran')->insert([
-            //         'no_bukti' => $this->generateNoBukti(),
-            //         'tanggal' => $request->tanggal,
-            //         'no_faktur' => $noFaktur,
-            //         'kode_pelanggan' => $request->kode_pelanggan,
-            //         'kode_sales' => Auth::user()->nik,
-            //         'jenis_bayar' => 'tunai',
-            //         'jumlah' => $totalBersih,
-            //         'keterangan' => 'Pembayaran tunai dari mobile',
-            //         'id_user' => Auth::user()->nik,
-            //         'created_at' => now(),
-            //         'updated_at' => now(),
-            //     ]);
-            // } elseif ($request->jenis_bayar === 'transfer') {
-            //     DB::table('penjualan_pembayaran_transfer')->insert([
-            //         'kode_transfer' => $this->generateNoBuktiTf(),
-            //         'no_faktur' => $noFaktur,
-            //         'kode_pelanggan' => $request->kode_pelanggan,
-            //         'kode_sales' => Auth::user()->nik,
-            //         'jenis_bayar' => 'transfer',
-            //         'jumlah' => $totalBersih,
-            //         'tanggal' => $request->tanggal,
-            //         'bank_pengirim' => $request->bank_pengirim ?? 'Unknown',
-            //         'status' => 'pending', // default
-            //         'keterangan' => 'Transfer dari mobile app',
-            //         'tanggal_diterima' => null,
-            //         'id_user' => Auth::user()->nik,
-            //         'created_at' => now(),
-            //         'updated_at' => now(),
-            //     ]);
-            // }
-
+            // --- 4. Update mutasi barang keluar ---
             $prefix = 'BK' . date('ym');
-            $last = DB::table('mutasi_barang_keluar')
-                ->where('kode_transaksi', 'like', "$prefix%")
-                ->orderByDesc('kode_transaksi')
-                ->value('kode_transaksi');
+            $kodeTransaksi = null;
 
-            $lastNumber = $last ? (int) substr($last, -4) + 1 : 1;
-            $kodeTransaksi = $prefix . str_pad($lastNumber, 4, '0', STR_PAD_LEFT);
+            if ($isEdit) {
+                // Ambil kode_transaksi lama
+                $kodeTransaksi = DB::table('mutasi_barang_keluar')
+                    ->where('no_faktur', $noFaktur)
+                    ->value('kode_transaksi');
 
-            DB::table('mutasi_barang_keluar')->insert([
-                'kode_transaksi' => $kodeTransaksi,
-                'tanggal' => $request->tanggal,
-                'jenis_pengeluaran' => 'penjualan',
-                'tujuan' => $request->kode_pelanggan,
-                'keterangan' => 'Pengeluaran karena penjualan',
-                'no_faktur' => $noFaktur,
-                'kode_pelanggan' => $request->kode_pelanggan,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+                // Update header mutasi
+                DB::table('mutasi_barang_keluar')
+                    ->where('no_faktur', $noFaktur)
+                    ->update([
+                        'tanggal' => $request->tanggal,
+                        'updated_at' => now(),
+                    ]);
 
+                // Hapus detail lama
+                DB::table('mutasi_barang_keluar_detail')->where('kode_transaksi', $kodeTransaksi)->delete();
+            } else {
+                // Generate kode_transaksi baru
+                $last = DB::table('mutasi_barang_keluar')
+                    ->where('kode_transaksi', 'like', "$prefix%")
+                    ->orderByDesc('kode_transaksi')
+                    ->value('kode_transaksi');
+                $lastNumber = $last ? (int) substr($last, -4) + 1 : 1;
+                $kodeTransaksi = $prefix . str_pad($lastNumber, 4, '0', STR_PAD_LEFT);
+
+                // Insert header mutasi baru
+                DB::table('mutasi_barang_keluar')->insert([
+                    'kode_transaksi' => $kodeTransaksi,
+                    'tanggal' => $request->tanggal,
+                    'jenis_pengeluaran' => 'penjualan',
+                    'tujuan' => $request->kode_pelanggan,
+                    'keterangan' => 'Pengeluaran karena penjualan',
+                    'no_faktur' => $noFaktur,
+                    'kode_pelanggan' => $request->kode_pelanggan,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            // Insert detail mutasi baru
             foreach ($keranjang as $item) {
                 $barangSatuan = DB::table('barang_satuan')
                     ->where('id', $item['satuan_id'])
@@ -473,28 +458,31 @@ class PenjualanController extends Controller
                 $konversi = $barangSatuan->isi ?? 1;
                 $qty = $item['jumlah'];
                 $qty_konversi = $qty * $konversi;
+
                 DB::table('mutasi_barang_keluar_detail')->insert([
                     'kode_transaksi' => $kodeTransaksi,
                     'satuan_id' => $item['satuan_id'] ?? null,
-                    'qty' => $item['jumlah'],
+                    'qty' => $qty,
                     'konversi' => $konversi,
                     'qty_konversi' => $qty_konversi,
                 ]);
             }
 
-            $aksi = $mode === 'edit' ? 'Update Penjualan' : 'Tambah Penjualan';
+            // --- 5. Log dan commit ---
+            $aksi = $isEdit ? 'Update Penjualan' : 'Tambah Penjualan';
             logActivity($aksi, "$noFaktur (Pelanggan: {$request->kode_pelanggan})");
 
             DB::commit();
-            if ($mode === 'edit') {
-                $redirectUrl = session('redirect_penjualan_url', route('viewPenjualan')); // dari Session
+
+            if ($isEdit) {
+                $redirectUrl = session('redirect_penjualan_url', route('viewPenjualan'));
                 return redirect($redirectUrl)->with('success', 'Penjualan berhasil diperbarui.');
             } else {
                 return redirect()->route('viewPenjualan')->with('success', 'Penjualan berhasil disimpan.');
             }
+
         } catch (\Throwable $th) {
             DB::rollBack();
-            report($th);
             return back()->with('error', 'Terjadi kesalahan, data gagal disimpan.')->withInput();
         }
     }
@@ -554,39 +542,59 @@ class PenjualanController extends Controller
                 return redirect()->route('viewPenjualan')->with('error', 'Data penjualan tidak ditemukan.');
             }
 
-            // Restore Limit Kredit jika pembayaran kredit
+            // Kembalikan sisa limit jika jenis transaksi Kredit
             if ($penjualan->jenis_transaksi === 'K') {
-                // Ambil penjualan_detail + supplier barang
                 $details = DB::table('penjualan_detail')
-                    ->join('barang', 'barang.kode_barang', 'penjualan_detail.kode_barang')
+                    ->join('barang', 'barang.kode_barang', '=', 'penjualan_detail.kode_barang')
                     ->where('penjualan_detail.no_faktur', $no_faktur)
                     ->select('barang.kode_supplier', DB::raw('SUM(penjualan_detail.subtotal) as total'))
                     ->groupBy('barang.kode_supplier')
                     ->get();
 
-                // Kembalikan sisa_limit per supplier di tabel pengajuan_limit_supplier
                 foreach ($details as $detail) {
-                    DB::table('pengajuan_limit_supplier')->where('kode_supplier', $detail->kode_supplier)
+                    DB::table('pengajuan_limit_supplier')
+                        ->where('kode_supplier', $detail->kode_supplier)
                         ->update([
                             'sisa_limit' => DB::raw("sisa_limit + {$detail->total}")
                         ]);
                 }
             }
 
-            // Hapus data terkait
+            // DELETE Mutasi Barang Keluar Detail (safe if no data)
+            DB::table('mutasi_barang_keluar_detail')
+                ->whereIn('kode_transaksi', function ($query) use ($no_faktur) {
+                    $query->select('kode_transaksi')
+                        ->from('mutasi_barang_keluar')
+                        ->where('no_faktur', $no_faktur);
+                })->delete();
+
+            // DELETE Mutasi Barang Keluar (safe if no data)
+            DB::table('mutasi_barang_keluar')
+                ->where('no_faktur', $no_faktur)
+                ->delete();
+
+            // DELETE Penjualan Detail (safe)
             DB::table('penjualan_detail')->where('no_faktur', $no_faktur)->delete();
-            DB::table('penjualan')->where('no_faktur', $no_faktur)->delete();
+
+            // DELETE Semua Pembayaran (safe even if data not exists)
             DB::table('penjualan_pembayaran')->where('no_faktur', $no_faktur)->delete();
+            DB::table('penjualan_pembayaran_transfer')->where('no_faktur', $no_faktur)->delete();
+            DB::table('penjualan_pembayaran_giro')->where('no_faktur', $no_faktur)->delete();
+
+            // DELETE Penjualan (safe)
+            DB::table('penjualan')->where('no_faktur', $no_faktur)->delete();
 
             logActivity('Delete Penjualan', "$no_faktur");
-            DB::commit();
 
+            DB::commit();
             return redirect()->route('viewPenjualan')->with('success', 'Data penjualan berhasil dihapus.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->route('viewPenjualan')->with('error', 'Terjadi kesalahan saat menghapus data.');
+            return redirect()->route('viewPenjualan')->with('error', 'Terjadi kesalahan saat menghapus data: ' . $e->getMessage());
         }
     }
+
+
 
 
     public function getBarangPenjualan()
@@ -683,7 +691,6 @@ class PenjualanController extends Controller
     {
         $request->validate([
             'tanggal' => 'required|date',
-            'jenis_bayar' => 'required|in:cash,transfer',
             'jumlah' => 'required|numeric|min:1',
             'kode_pelanggan' => 'required',
             'kode_sales' => 'required',
@@ -871,33 +878,101 @@ class PenjualanController extends Controller
     public function getBarang(Request $request)
     {
         $term = $request->q;
-
         $userKategori = Auth::user()->divisi;
+
+        // Ambil bulan dan tahun saat ini (bisa diganti dari input jika perlu)
+        $bulan = now()->month;
+        $tahun = now()->year;
 
         $barang = DB::table('barang')
             ->select(
                 'barang.kode_barang',
                 'barang.nama_barang',
-                'barang.jenis'
+                'barang.kategori',
+                'barang.merk',
+                'barang.jenis',
+                DB::raw('COALESCE(sa.saldo_awal, 0) +
+                     COALESCE(masuk.pembelian, 0) +
+                     COALESCE(masuk.repack, 0) +
+                     COALESCE(masuk.retur_pengganti, 0) +
+                     COALESCE(masuk.penyesuaian_masuk, 0) +
+                     COALESCE(masuk.lainnya_masuk, 0) -
+                     COALESCE(keluar.penjualan, 0) -
+                     COALESCE(keluar.reject_gudang, 0) -
+                     COALESCE(keluar.penyesuaian_keluar, 0) -
+                     COALESCE(keluar.lainnya_keluar, 0) AS saldo_akhir')
             )
-            ->when($term, function ($q) use ($term) {
-                $q->where(function ($query) use ($term) {
-                    $query->where('barang.nama_barang', 'like', "%{$term}%")
+            // Join ke satuan dasar (untuk konsistensi stok)
+            ->leftJoin('barang_satuan as bs', function ($join) {
+                $join->on('barang.kode_barang', '=', 'bs.kode_barang')
+                    ->where('bs.isi', 1); // satuan dasar
+            })
+            // Saldo Awal Bulan Ini
+            ->leftJoin(
+                DB::raw("(SELECT kode_barang, SUM(qty) AS saldo_awal FROM saldo_awal_gs WHERE bulan = {$bulan} AND tahun = {$tahun} GROUP BY kode_barang) AS sa"),
+                'barang.kode_barang',
+                '=',
+                'sa.kode_barang'
+            )
+            // Pemasukan (Mutasi Masuk)
+            ->leftJoin(
+                DB::raw("(SELECT bs2.kode_barang,
+                                   SUM(CASE WHEN mbm.jenis_pemasukan = 'Pembelian' THEN mbd.qty_konversi ELSE 0 END) AS pembelian,
+                                   SUM(CASE WHEN mbm.jenis_pemasukan = 'Repack' THEN mbd.qty_konversi ELSE 0 END) AS repack,
+                                   SUM(CASE WHEN mbm.jenis_pemasukan = 'Retur Pengganti' THEN mbd.qty_konversi ELSE 0 END) AS retur_pengganti,
+                                   SUM(CASE WHEN mbm.jenis_pemasukan = 'Penyesuaian' THEN mbd.qty_konversi ELSE 0 END) AS penyesuaian_masuk,
+                                   SUM(CASE WHEN mbm.jenis_pemasukan = 'Lainnya' THEN mbd.qty_konversi ELSE 0 END) AS lainnya_masuk
+                            FROM mutasi_barang_masuk_detail mbd
+                            JOIN mutasi_barang_masuk mbm ON mbm.kode_transaksi = mbd.kode_transaksi
+                            JOIN barang_satuan bs2 ON bs2.id = mbd.satuan_id
+                            WHERE mbm.kondisi = 'gs' AND MONTH(mbm.tanggal) = {$bulan} AND YEAR(mbm.tanggal) = {$tahun}
+                            GROUP BY bs2.kode_barang) AS masuk"),
+                'barang.kode_barang',
+                '=',
+                'masuk.kode_barang'
+            )
+            // Pengeluaran (Mutasi Keluar)
+            ->leftJoin(
+                DB::raw("(SELECT bs3.kode_barang,
+                                   SUM(CASE WHEN mbk.jenis_pengeluaran = 'Penjualan' THEN mkd.qty_konversi ELSE 0 END) AS penjualan,
+                                   SUM(CASE WHEN mbk.jenis_pengeluaran = 'Reject' THEN mkd.qty_konversi ELSE 0 END) AS reject_gudang,
+                                   SUM(CASE WHEN mbk.jenis_pengeluaran = 'Penyesuaian' THEN mkd.qty_konversi ELSE 0 END) AS penyesuaian_keluar,
+                                   SUM(CASE WHEN mbk.jenis_pengeluaran = 'Lainnya' THEN mkd.qty_konversi ELSE 0 END) AS lainnya_keluar
+                            FROM mutasi_barang_keluar_detail mkd
+                            JOIN mutasi_barang_keluar mbk ON mbk.kode_transaksi = mkd.kode_transaksi
+                            JOIN barang_satuan bs3 ON bs3.id = mkd.satuan_id
+                            WHERE mbk.kondisi = 'gs' AND MONTH(mbk.tanggal) = {$bulan} AND YEAR(mbk.tanggal) = {$tahun}
+                            GROUP BY bs3.kode_barang) AS keluar"),
+                'barang.kode_barang',
+                '=',
+                'keluar.kode_barang'
+            )
+            // Filter
+            ->when($term, function ($query) use ($term) {
+                $query->where(function ($q) use ($term) {
+                    $q->where('barang.nama_barang', 'like', "%{$term}%")
                         ->orWhere('barang.kode_barang', 'like', "%{$term}%");
                 });
             })
-            ->when($userKategori, function ($q) use ($userKategori) {
-                $q->where('barang.kategori', $userKategori);
+            ->when($userKategori, function ($query) use ($userKategori) {
+                $query->where('barang.kategori', $userKategori);
             })
-            ->where('barang.status', '1')
+            ->where('barang.status', 1)
+            // Hanya yang stoknya ada
+            // ->having('saldo_akhir', '>', 0)
+            // Urutkan & batasi
             ->orderBy('barang.nama_barang')
             ->limit(50)
             ->get();
 
-        $results = $barang->map(function ($b) {
+        $results = $barang->map(function ($item) {
             return [
-                'id' => $b->kode_barang,
-                'text' => $b->nama_barang,
+                'id' => $item->kode_barang,
+                'text' => $item->nama_barang . ' (Stok: ' . number_format(max(0, (float) $item->saldo_akhir), 0) . ')',
+                'nama_barang' => $item->nama_barang,
+                'kategori' => $item->kategori,
+                'merk' => $item->merk,
+                'saldo_akhir' => (float) $item->saldo_akhir,
             ];
         });
 
@@ -939,32 +1014,58 @@ class PenjualanController extends Controller
             return response()->json(['message' => 'Faktur tidak ditemukan.'], 404);
         }
 
-        if ($penjualan->jenis_transaksi === 'K') {
-            // Ambil penjualan_detail + supplier barang
-            $details = DB::table('penjualan_detail')
-                ->join('barang', 'barang.kode_barang', 'penjualan_detail.kode_barang')
-                ->where('penjualan_detail.no_faktur', $no_faktur)
-                ->select('barang.kode_supplier', DB::raw('SUM(penjualan_detail.subtotal) as total'))
-                ->groupBy('barang.kode_supplier')
-                ->get();
-
-            // Kembalikan sisa_limit per supplier di tabel pengajuan_limit_supplier
-            foreach ($details as $detail) {
-                DB::table('pengajuan_limit_supplier')->where('kode_supplier', $detail->kode_supplier)
-                    ->update([
-                        'sisa_limit' => DB::raw("sisa_limit + {$detail->total}")
-                    ]);
-            }
+        if ($penjualan->batal) {
+            return response()->json(['message' => 'Faktur sudah pernah dibatalkan.'], 400);
         }
 
-        DB::table('penjualan')->where('no_faktur', $no_faktur)->update([
-            'batal' => true,
-            'alasan_batal' => $request->alasan,
-            'updated_at' => now()
-        ]);
-        logActivity('Batal Faktur Penjualan', $no_faktur);
+        DB::beginTransaction();
 
-        return response()->json(['message' => 'Faktur berhasil dibatalkan.']);
+        try {
+            if ($penjualan->jenis_transaksi === 'K') {
+                $details = DB::table('penjualan_detail')
+                    ->join('barang', 'barang.kode_barang', '=', 'penjualan_detail.kode_barang')
+                    ->where('penjualan_detail.no_faktur', $no_faktur)
+                    ->select('barang.kode_supplier', DB::raw('SUM(penjualan_detail.subtotal) as total'))
+                    ->groupBy('barang.kode_supplier')
+                    ->get();
+
+                foreach ($details as $detail) {
+                    DB::table('pengajuan_limit_supplier')
+                        ->where('kode_supplier', $detail->kode_supplier)
+                        ->update([
+                            'sisa_limit' => DB::raw("sisa_limit + {$detail->total}")
+                        ]);
+                }
+            }
+
+            DB::table('mutasi_barang_keluar_detail')
+                ->whereIn('kode_transaksi', function ($query) use ($no_faktur) {
+                    $query->select('kode_transaksi')
+                        ->from('mutasi_barang_keluar')
+                        ->where('no_faktur', $no_faktur);
+                })->delete();
+
+            DB::table('mutasi_barang_keluar')
+                ->where('no_faktur', $no_faktur)
+                ->delete();
+
+            DB::table('penjualan')
+                ->where('no_faktur', $no_faktur)
+                ->update([
+                    'batal' => true,
+                    'alasan_batal' => $request->alasan,
+                    'updated_at' => now()
+                ]);
+
+            logActivity('Batal Faktur Penjualan', $no_faktur);
+
+            DB::commit();
+
+            return response()->json(['message' => 'Faktur berhasil dibatalkan dan data mutasi dihapus.']);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json(['message' => 'Terjadi kesalahan saat membatalkan faktur.'], 500);
+        }
     }
 
     public function storePembayaranTransfer(Request $request)
@@ -1074,40 +1175,74 @@ class PenjualanController extends Controller
     }
     public function viewKirimanSales(Request $request)
     {
-        $tanggal = $request->tanggal ?? date('Y-m-d'); // Default ke hari ini kalau tidak ada input tanggal
-
+        $tanggal = $request->tanggal;
         $wilayah = DB::table('wilayah as w')
-            ->join('penjualan_kiriman as pk', 'pk.kode_wilayah', '=', 'w.kode_wilayah')
-            ->where('pk.tanggal', $tanggal)
             ->select('w.kode_wilayah', 'w.nama_wilayah')
-            ->groupBy('w.kode_wilayah', 'w.nama_wilayah')
             ->get();
 
         $data = DB::table('penjualan_kiriman as pk')
             ->join('penjualan as p', 'p.no_faktur', '=', 'pk.no_faktur')
-            ->join('pelanggan as pl', 'pl.kode_pelanggan', '=', 'p.kode_pelanggan')
-            ->join('hrd_karyawan as s', 's.nik', '=', 'p.kode_sales')
             ->join('wilayah as w', 'w.kode_wilayah', '=', 'pk.kode_wilayah')
             ->select(
-                'pk.id',
                 'pk.tanggal',
-                'pk.no_faktur',
-                'pl.nama_pelanggan',
-                's.nama_lengkap as nama_sales',
+                'pk.kirimanke',
+                'w.kode_wilayah',
                 'w.nama_wilayah',
-                'p.grand_total'
+                DB::raw('SUM(p.grand_total) as total')
             )
-            ->when($request->tanggal, fn($q) => $q->where('pk.tanggal', '>=', $request->tanggal))
+            ->when($request->tanggal, fn($q) => $q->where('pk.tanggal', '=', $request->tanggal))
             ->when($request->kode_wilayah, fn($q) => $q->where('pk.kode_wilayah', $request->kode_wilayah))
+            ->when($request->kirimanke, fn($q) => $q->where('pk.kirimanke', $request->kirimanke))
+            ->groupBy('pk.tanggal', 'w.kode_wilayah', 'w.nama_wilayah', 'pk.kirimanke')
             ->orderBy('pk.tanggal', 'desc')
+            ->orderBy('w.nama_wilayah')
+            ->limit('20')
             ->get();
 
         return view('penjualan.viewKirimanSales', compact('wilayah', 'data'));
     }
 
+    public function deleteGroupKirimanSales(Request $request)
+    {
+        $tanggal = $request->tanggal;
+        $kodeWilayah = $request->kode_wilayah;
+
+        $kiriman = DB::table('penjualan_kiriman')
+            ->where('tanggal', $tanggal)
+            ->where('kode_wilayah', $kodeWilayah)
+            ->get();
+
+        if (!$kiriman) {
+            return response()->json(['message' => 'Data kiriman tidak ditemukan.'], 404);
+        }
+
+        $noFakturList = $kiriman->pluck('no_faktur');
+
+        DB::table('penjualan')
+            ->whereIn('no_faktur', $noFakturList)
+            ->update([
+                'tanggal_kirim' => null,
+                'updated_at' => now()
+            ]);
+
+        DB::table('mutasi_barang_keluar')
+            ->whereIn('no_faktur', $noFakturList)
+            ->update([
+                'tanggal_dikirim' => null,
+                'updated_at' => now()
+            ]);
+        // Delete semua kiriman dengan tanggal & wilayah tersebut
+        DB::table('penjualan_kiriman')
+            ->where('tanggal', $tanggal)
+            ->where('kode_wilayah', $kodeWilayah)
+            ->delete();
+
+        return response()->json(['status' => 'success']);
+    }
     public function cetakKirimanGudang(Request $request)
     {
         $kodeWilayah = $request->kode_wilayah;
+        $kirimanKe = $request->kirimanke;
         $tanggal = $request->tanggal;
 
         $kiriman = DB::table('penjualan_kiriman as pk')
@@ -1121,6 +1256,9 @@ class PenjualanController extends Controller
             ->when($kodeWilayah, function ($q) use ($kodeWilayah) {
                 return $q->where('pk.kode_wilayah', $kodeWilayah);
             })
+            ->when($kirimanKe, function ($q) use ($kirimanKe) {
+                return $q->where('pk.kirimanke', $kirimanKe);
+            })
             ->select(
                 'pk.tanggal',
                 'pk.no_faktur',
@@ -1129,7 +1267,7 @@ class PenjualanController extends Controller
                 'w.nama_wilayah',
                 'p.grand_total'
             )
-            ->orderBy('pk.tanggal', 'desc')
+            ->orderBy('pl.nama_pelanggan', 'asc')
             ->get();
 
         // Ambil detail barang per faktur
@@ -1148,25 +1286,48 @@ class PenjualanController extends Controller
                 'pd.qty',
                 'pd.harga'
             )
+            ->orderBy('b.nama_barang', 'asc')
             ->get()
-            ->groupBy('no_faktur');
+            ->groupBy('no_faktur')
+            ->map(function ($group) {
+                return $group->sortBy('nama_barang');
+            });
 
-        $barangSatuan = DB::table('barang_satuan')
-            ->orderBy('isi', 'desc')
-            ->get()
-            ->groupBy('kode_barang');
 
-        // Kirim data ke view
-        $data = [
-            'tanggal' => $tanggal,
-            'wilayah' => DB::table('wilayah')->where('kode_wilayah', $kodeWilayah)->first(),
-            'kiriman' => $kiriman,
-            'detail' => $details,
-            'barangSatuan' => $barangSatuan,
-        ];
+        $groupedDetails = [];
+
+        foreach ($details as $no_faktur => $items) {
+            foreach ($items as $item) {
+                $key = $item->kode_barang;
+
+                if (!isset($groupedDetails[$key])) {
+                    $groupedDetails[$key] = [
+                        'kode_barang' => $item->kode_barang,
+                        'nama_barang' => $item->nama_barang,
+                        'satuan' => [],
+                    ];
+                }
+
+                if (!isset($groupedDetails[$key]['satuan'][$item->satuan])) {
+                    $groupedDetails[$key]['satuan'][$item->satuan] = 0;
+                }
+
+                $groupedDetails[$key]['satuan'][$item->satuan] += $item->qty;
+            }
+        }
+
+        $data['groupedDetails'] = collect($groupedDetails)
+            ->values()
+            ->sortBy('nama_barang');
+
+        $data['tanggal'] = $tanggal;
+        $data['wilayah'] = DB::table('wilayah')->where('kode_wilayah', $kodeWilayah)->first();
+        $data['kiriman'] = $kiriman;
+        $data['detail'] = $details;
 
         return view('penjualan.cetakKirimanGudang', $data);
     }
+
 
     public function deleteDetailPenjualan($id)
     {
@@ -1182,6 +1343,7 @@ class PenjualanController extends Controller
     public function cetakKirimanSales(Request $request)
     {
         $kode_wilayah = $request->kode_wilayah;
+        $kirimanke = $request->kirimanke;
         $data['tanggal'] = $request->tanggal;
         $data['wilayah'] = DB::table('wilayah')->where('kode_wilayah', $kode_wilayah)->first();
         $data['data'] = DB::table('penjualan_kiriman as pk')
@@ -1190,7 +1352,7 @@ class PenjualanController extends Controller
             ->join('hrd_karyawan as s', 's.nik', '=', 'p.kode_sales')
             ->join('wilayah as w', 'w.kode_wilayah', '=', 'pk.kode_wilayah')
             ->select(
-                'pk.tanggal',
+                'p.tanggal',
                 'pk.no_faktur',
                 'pl.nama_pelanggan',
                 's.nama_lengkap as nama_sales',
@@ -1199,7 +1361,8 @@ class PenjualanController extends Controller
             )
             ->when($request->tanggal, fn($q) => $q->where('pk.tanggal', '>=', $request->tanggal))
             ->when($request->kode_wilayah, fn($q) => $q->where('pk.kode_wilayah', $request->kode_wilayah))
-            ->orderBy('pk.tanggal', 'desc')
+            ->when($request->kirimanke, fn($q) => $q->where('pk.kirimanke', $request->kirimanke))
+            ->orderBy('pl.nama_pelanggan', 'asc')
             ->get();
 
         return view('penjualan.cetakKirimanSales', $data);
@@ -1211,8 +1374,11 @@ class PenjualanController extends Controller
         return view('penjualan.createKirimanSales', compact('wilayah'));
     }
 
-    public function getFakturByWilayah($kode_wilayah)
+    public function getFakturByWilayah(Request $request, $kode_wilayah)
     {
+        $tanggal_dari = $request->tanggal_dari;
+        $tanggal_sampai = $request->tanggal_sampai;
+
         $data = DB::table('penjualan as faktur')
             ->join('pelanggan', 'pelanggan.kode_pelanggan', '=', 'faktur.kode_pelanggan')
             ->join('hrd_karyawan', 'hrd_karyawan.nik', '=', 'faktur.kode_sales')
@@ -1228,7 +1394,9 @@ class PenjualanController extends Controller
             ->when($kode_wilayah && $kode_wilayah !== 'null', function ($query) use ($kode_wilayah) {
                 $query->where('pelanggan.kode_wilayah', $kode_wilayah);
             })
-            // 🚫 Cek agar no_faktur belum ada di penjualan_kiriman
+            ->when($tanggal_dari && $tanggal_sampai, function ($query) use ($tanggal_dari, $tanggal_sampai) {
+                $query->whereBetween('faktur.tanggal', [$tanggal_dari, $tanggal_sampai]);
+            })
             ->whereNotIn('faktur.no_faktur', function ($sub) {
                 $sub->select('no_faktur')->from('penjualan_kiriman');
             })
@@ -1244,38 +1412,66 @@ class PenjualanController extends Controller
 
     public function storeKirimanSales(Request $request)
     {
-        try {
-            $tanggal = $request->tanggal;
-            $kodeWilayah = $request->kode_wilayah_pengiriman;
+        // DB::beginTransaction();
+        // try {
+        $tanggal = $request->tanggal;
+        $kodeWilayah = $request->kode_wilayah_pengiriman;
+        $kirimanke = $request->kirimanke;
 
-            foreach ($request->items as $item) {
-                // Simpan atau update ke tabel penjualan_kiriman
-                DB::table('penjualan_kiriman')->updateOrInsert(
-                    [
-                        'tanggal' => $tanggal,
-                        'no_faktur' => $item['no_faktur'],
-                    ],
-                    [
-                        'kode_wilayah' => $kodeWilayah,
-                        'keterangan' => null,
-                        'updated_at' => now(),
-                        'created_at' => now(),
-                    ]
-                );
+        foreach ($request->items as $item) {
+            // Cek apakah data sudah ada di penjualan_kiriman
+            $exists = DB::table('penjualan_kiriman')
+                ->where('tanggal', $tanggal)
+                ->where('kirimanke', $kirimanke)
+                ->where('no_faktur', $item['no_faktur'])
+                ->exists();
 
-                // Update tanggal_kirim di tabel penjualan
-                DB::table('penjualan')
+            // Update or Insert penjualan_kiriman
+            if ($exists) {
+                DB::table('penjualan_kiriman')
+                    ->where('tanggal', $tanggal)
                     ->where('no_faktur', $item['no_faktur'])
                     ->update([
-                        'tanggal_kirim' => $tanggal,
-                        'updated_at' => now()
+                        'kode_wilayah' => $kodeWilayah,
+                        'kirimanke' => $kirimanke,
+                        'keterangan' => null,
+                        'updated_at' => now(),
                     ]);
+            } else {
+                DB::table('penjualan_kiriman')->insert([
+                    'tanggal' => $tanggal,
+                    'no_faktur' => $item['no_faktur'],
+                    'kode_wilayah' => $kodeWilayah,
+                    'kirimanke' => $kirimanke,
+                    'keterangan' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
             }
 
-            return redirect()->route('viewKirimanSales')->with('success', 'Kiriman berhasil disimpan / diperbarui!');
-        } catch (\Throwable $e) {
-            return back()->with('error', 'Gagal menyimpan kiriman: ' . $e->getMessage());
+            // Update tanggal_kirim di tabel penjualan
+            DB::table('penjualan')
+                ->where('no_faktur', $item['no_faktur'])
+                ->update([
+                    'tanggal_kirim' => $tanggal,
+                    'updated_at' => now()
+                ]);
+
+            // Update tanggal_kirim di tabel mutasi_barang_keluar
+            DB::table('mutasi_barang_keluar')
+                ->where('no_faktur', $item['no_faktur'])
+                ->update([
+                    'tanggal_dikirim' => $tanggal,
+                    'updated_at' => now()
+                ]);
         }
+
+        DB::commit();
+        return redirect()->route('viewKirimanSales')->with('success', 'Kiriman berhasil disimpan / diperbarui!');
+        // } catch (\Throwable $e) {
+        //     DB::rollBack();
+        //     return back()->with('error', 'Gagal menyimpan kiriman: ' . $e->getMessage());
+        // }
     }
 
     public function deleteKirimanSales($id)
@@ -1296,6 +1492,12 @@ class PenjualanController extends Controller
                 'updated_at' => now()
             ]);
 
+        DB::table('mutasi_barang_keluar')
+            ->where('no_faktur', $kiriman->no_faktur)
+            ->update([
+                'tanggal_kirim' => null,
+                'updated_at' => now()
+            ]);
         return response()->json(['message' => 'Data berhasil dihapus dan tanggal_kirim dikosongkan.']);
     }
 
@@ -1326,21 +1528,54 @@ class PenjualanController extends Controller
     public function getDiskonStrataSemua($kode_barang, $qty, $nominal)
     {
         $diskon = DB::table('diskon_strata')
-            ->where('kode_barang', $kode_barang)
-            ->where(function ($q) use ($qty, $nominal) {
-                $q->where(function ($sub) use ($qty) {
-                    $sub->where('tipe_syarat', 'qty')
-                        ->where('syarat', '<=', $qty);
-                })
+            ->where(function ($q) use ($kode_barang, $qty, $nominal) {
+                $q->where('kode_barang', $kode_barang)
+                    ->where(function ($sub) use ($qty, $nominal) {
+                        $sub->where('tipe_syarat', 'qty')
+                            ->where('syarat', '<=', $qty);
+                    })
                     ->orWhere(function ($sub) use ($nominal) {
                         $sub->where('tipe_syarat', 'nominal')
                             ->where('syarat', '<=', $nominal);
                     });
+
+                // Diskon per supplier
+                $q->orWhereNull('kode_barang')
+                    ->where('kode_supplier', '!=', '')
+                    ->where(function ($sub) use ($nominal) {
+                    $sub->where('tipe_syarat', 'nominal')
+                        ->where('syarat', '<=', $nominal);
+                });
             })
             ->orderBy('persentase', 'desc')
             ->get();
 
         return response()->json($diskon);
+    }
+
+    public function getDiskonStrataSupplier($kode_supplier, $jumlah, $tipe = 'nominal')
+    {
+        $diskon = DB::table('diskon_strata')
+            ->where('kode_supplier', $kode_supplier)
+            ->where('jenis_diskon', 'supplier')
+            ->where('tipe_syarat', $tipe)
+            ->where('syarat', '<=', $jumlah) // total belanja >= syarat
+            ->orderByDesc('persentase') // ambil yang diskonnya paling besar
+            ->first();
+
+        if ($diskon) {
+            return response()->json([
+                'active' => true,
+                'persentase' => (float) $diskon->persentase,
+                'syarat' => (float) $diskon->syarat,
+            ]);
+        }
+
+        return response()->json([
+            'active' => false,
+            'persentase' => 0,
+            'syarat' => 0,
+        ]);
     }
 
 }

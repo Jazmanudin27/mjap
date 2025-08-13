@@ -37,36 +37,48 @@ class KasKecilController extends Controller
     public function store(Request $request)
     {
         DB::table('kas_kecil')->insert([
-            'tanggal'     => $request->tanggal,
-            'keterangan'  => $request->keterangan,
-            'tipe'        => $request->tipe,
-            'jumlah'      => (int) str_replace(['Rp', '.', ','], '', $request->jumlah),
-            'id_user'     => Auth::user()->id ?? null,
-            'created_at'  => now(),
-            'updated_at'  => now(),
+            'tanggal' => $request->tanggal,
+            'keterangan' => $request->keterangan,
+            'tipe' => $request->tipe,
+            'jumlah' => (int) str_replace(['Rp', '.', ','], '', $request->jumlah),
+            'id_user' => Auth::user()->id ?? null,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
-        return redirect()->route('viewKasKecil')->with('success', 'Transaksi berhasil disimpan.');
+        return redirect()->route('viewKasKecil', [
+            'tanggal_dari' => $request->tanggal_dari,
+            'tanggal_sampai' => $request->tanggal_sampai,
+            'kode_bank' => $request->kode_bank,
+        ])->with('success', 'Data berhasil update.');
     }
 
 
     public function update(Request $request)
     {
         DB::table('kas_kecil')->where('id', $request->id_mutasi)->update([
-            'tanggal'     => $request->tanggal,
-            'keterangan'  => $request->keterangan,
-            'tipe'        => $request->tipe,
-            'jumlah'      => (int) str_replace(['Rp', '.', ','], '', $request->jumlah),
-            'id_user'     => Auth::user()->id ?? null,
-            'updated_at'  => now(),
+            'tanggal' => $request->tanggal,
+            'keterangan' => $request->keterangan,
+            'tipe' => $request->tipe,
+            'jumlah' => (int) str_replace(['Rp', '.', ','], '', $request->jumlah),
+            'id_user' => Auth::user()->id ?? null,
+            'updated_at' => now(),
         ]);
-
-        return redirect()->route('viewKasKecil')->with('success', 'Data berhasil diperbarui.');
+        return redirect()->route('viewKasKecil', [
+            'tanggal_dari' => $request->tanggal_dari,
+            'tanggal_sampai' => $request->tanggal_sampai,
+            'kode_bank' => $request->kode_bank,
+        ])->with('success', 'Data berhasil update.');
     }
 
-    public function delete($id)
+    public function delete(Request $request, $id)
     {
         DB::table('kas_kecil')->where('id', $id)->delete();
-        return redirect()->route('viewKasKecil')->with('success', 'Data berhasil dihapus.');
+        return redirect()->route('viewKasKecil', [
+            'tanggal_dari' => $request->tanggal_dari,
+            'tanggal_sampai' => $request->tanggal_sampai,
+            'kode_bank' => $request->kode_bank,
+        ])->with('success', 'Data berhasil dihapus.');
     }
+
 }

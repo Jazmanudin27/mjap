@@ -52,6 +52,7 @@
         <thead>
             <tr>
                 <th>Tanggal</th>
+                <th>Approve</th>
                 <th>Kode Transaksi</th>
                 <th>Jenis Barang</th>
                 <th>Jenis Mutasi</th>
@@ -67,6 +68,9 @@
             @forelse ($data as $row)
                 <tr class="{{ $row->kondisi == 'gs' ? 'bg-gs' : '' }}{{ $row->kondisi == 'bs' ? 'bg-bs' : '' }}">
                     <td>{{ tanggal_indo2($row->tanggal) }}</td>
+                    <td>
+                        {{ $row->tanggal_dikirim ? tanggal_indo2($row->tanggal_dikirim) : '' }}
+                    </td>
                     <td>{{ $row->kode_transaksi }}</td>
                     <td>{{ strtoupper($row->kondisi) }}</td> {{-- GS / BS --}}
                     <td>{{ $row->jenis }}</td>

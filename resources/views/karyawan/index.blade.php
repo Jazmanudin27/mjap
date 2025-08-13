@@ -103,7 +103,7 @@
                                         <th style="width: 8%">Jabatan</th>
                                         <th style="width: 8%">Dept.</th>
                                         <th style="width: 9%">Tgl Masuk</th>
-                                        <th style="width: 6%">Umur</th>
+                                        <th style="width: 8%">Umur</th>
                                         <th style="width: 8%">Masa Kerja</th>
                                         <th style="width: 7%">Karyawan</th>
                                         <th style="width: 15%">Aksi</th>

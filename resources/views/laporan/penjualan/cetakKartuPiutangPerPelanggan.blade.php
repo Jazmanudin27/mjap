@@ -36,9 +36,9 @@
                     <td>{{ $t->jenis }}</td>
                     <td>{{ $t->nomor }}</td>
                     <td>{{ $t->keterangan }}</td>
-                    <td class="text-end">{{ $t->debet > 0 ? rupiah($t->debet) : '' }}</td>
-                    <td class="text-end">{{ $t->kredit > 0 ? rupiah($t->kredit) : '' }}</td>
-                    <td class="text-end fw-bold">{{ rupiah($saldo) }}</td>
+                    <td class="text-end">{{ $t->debet > 0 ? formatAngka($t->debet) : '' }}</td>
+                    <td class="text-end">{{ $t->kredit > 0 ? formatAngka($t->kredit) : '' }}</td>
+                    <td class="text-end fw-bold">{{ formatAngka($saldo) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -49,7 +49,7 @@
         <tfoot>
             <tr style="background-color: #f8f9fa;">
                 <td colspan="7" class="text-end fw-bold">Saldo Akhir</td>
-                <td class="text-end fw-bold">{{ rupiah($saldo) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($saldo) }}</td>
             </tr>
         </tfoot>
     </table>

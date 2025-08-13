@@ -46,6 +46,11 @@
                                         aria-selected="false">
                                         LPH
                                     </button>
+                                    <button class="nav-link text-start" id="tab-tagihan" data-bs-toggle="pill"
+                                        data-bs-target="#panel-tagihan" type="button" role="tab"
+                                        aria-controls="panel-tagihan" aria-selected="false">
+                                        Rekap Tagihan
+                                    </button>
                                     <button class="nav-link text-start" id="tab-target" data-bs-toggle="pill"
                                         data-bs-target="#panel-target" type="button" role="tab"
                                         aria-controls="panel-target" aria-selected="false">
@@ -77,6 +82,10 @@
                                     </div>
                                     <div class="tab-pane fade" id="panel-lph" role="tabpanel" aria-labelledby="tab-lph">
                                         @include('laporan.penjualan.laporanPenjualanHarian')
+                                    </div>
+                                    <div class="tab-pane fade" id="panel-tagihan" role="tabpanel"
+                                        aria-labelledby="tab-tagihan">
+                                        @include('laporan.penjualan.laporanRekapTagihan')
                                     </div>
                                     <div class="tab-pane fade" id="panel-target" role="tabpanel"
                                         aria-labelledby="tab-target">

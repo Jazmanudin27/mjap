@@ -12,25 +12,25 @@ class SaldoAwalController extends Controller
 {
     public function viewSaldoAwalGS(Request $request)
     {
-        $data['suppliers'] = DB::table('supplier')->orderBy('nama_supplier','ASC')->get();
+        $data['suppliers'] = DB::table('supplier')->orderBy('nama_supplier', 'ASC')->get();
         return view('saldoawal.viewSaldoAwalGS', $data);
     }
     public function viewSaldoAwalBS(Request $request)
     {
-        $data['suppliers'] = DB::table('supplier')->orderBy('nama_supplier','ASC')->get();
+        $data['suppliers'] = DB::table('supplier')->orderBy('nama_supplier', 'ASC')->get();
         return view('saldoawal.viewSaldoAwalBS', $data);
     }
 
     public function createSaldoAwalGS()
     {
-        $data['suppliers'] = DB::table('supplier')->orderBy('nama_supplier','ASC')->get();
-        return view('saldoawal.createSaldoAwalGS',$data);
+        $data['suppliers'] = DB::table('supplier')->orderBy('nama_supplier', 'ASC')->get();
+        return view('saldoawal.createSaldoAwalGS', $data);
     }
 
     public function createSaldoAwalBS()
     {
-        $data['suppliers'] = DB::table('supplier')->orderBy('nama_supplier','ASC')->get();
-        return view('saldoawal.createSaldoAwalBS',$data);
+        $data['suppliers'] = DB::table('supplier')->orderBy('nama_supplier', 'ASC')->get();
+        return view('saldoawal.createSaldoAwalBS', $data);
     }
 
     public function storeSaldoAwalGS(Request $request)
@@ -79,7 +79,6 @@ class SaldoAwalController extends Controller
         }
         return back()->with('success', 'Saldo awal berhasil disimpan.');
     }
-
     public function delete(Request $request)
     {
         $hapus = DB::table('barang')->where('kode_barang', $request->id)->first();
@@ -91,7 +90,8 @@ class SaldoAwalController extends Controller
             return Redirect('viewBarang')->with(['warning' => 'Data Gagal Dihapus']);
         }
     }
-    public function getBarangBySupplier($kode_supplier)
+
+    public function getBarangBSBySupplier($kode_supplier)
     {
         $barang = DB::table('barang')
             ->join('barang_satuan', function ($join) {
@@ -99,7 +99,29 @@ class SaldoAwalController extends Controller
                     ->where('barang_satuan.isi', 1);
             })
             ->where('barang.kode_supplier', $kode_supplier)
+            ->where('barang.status', 1)
             ->select('barang.kode_barang', 'barang.nama_barang', 'barang_satuan.satuan')
+            ->orderBy('barang.nama_barang')
+            ->get();
+
+        return response()->json($barang);
+    }
+    public function getBarangGSBySupplier($kode_supplier)
+    {
+        $barang = DB::table('barang')
+            ->join('barang_satuan', function ($join) {
+                $join->on('barang.kode_barang', '=', 'barang_satuan.kode_barang')
+                    ->where('barang_satuan.isi', 1);
+            })
+            ->leftJoin('saldo_awal_gs', 'barang.kode_barang', '=', 'saldo_awal_gs.kode_barang')
+            ->where('barang.kode_supplier', $kode_supplier)
+            ->where('barang.status', 1)
+            ->select(
+                'barang.kode_barang',
+                'barang.nama_barang',
+                'barang_satuan.satuan',
+                DB::raw('COALESCE(saldo_awal_gs.qty, 0) as qty')
+            )
             ->orderBy('barang.nama_barang')
             ->get();
 

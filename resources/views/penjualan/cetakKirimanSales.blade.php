@@ -79,25 +79,68 @@
             text-align: center;
             margin-bottom: 10px;
         }
+
+
+        .header-right {
+            position: absolute;
+            width: 210mm;
+            top: 20px;
+            right: 20px;
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 
 <body>
-    <div class="header-title">REKAP KIRIMAN SALES</div>
-    <div class="header-subtitle">
-        Tanggal Pengiriman: {{ tanggal_indo2($tanggal) }}<br>
-        Wilayah: {{ $wilayah->nama_wilayah ?? '-' }}
-    </div>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+        <tr>
+            <td colspan="2"
+                style="text-align: center; font-size: 24px; font-weight: bold; padding-bottom: 5px; border: none;">
+                REKAP KIRIMAN
+            </td>
+        </tr>
+        <tr>
+            <td style="width: 60%; border: none; vertical-align: top;">
+                <table style="border-collapse: collapse; width: 100%;">
+                    <tr>
+                        <td style="width: 50%; font-size: 15px; border: none;">Tanggal Pengiriman</td>
+                        <td style="width: 5%; text-align: center; border: none;">:</td>
+                        <td style="border: none; font-size: 15px;">{{ tanggal_indo2($tanggal) }}</td>
+                    </tr>
+                    <tr>
+                        <td style="font-size: 15px; border: none;">Wilayah</td>
+                        <td style="text-align: center; border: none;">:</td>
+                        <td style="border: none; font-size: 15px;">{{ $wilayah->nama_wilayah ?? '-' }}</td>
+                    </tr>
+                </table>
+            </td>
+            <td style="width: 40%; border: none; vertical-align: top;">
+                <table style="border-collapse: collapse; width: 100%;">
+                    <tr>
+                        <td style="width: 40%; font-size: 15px; border: none;">Driver</td>
+                        <td style="width: 5%; text-align: center; border: none;">:</td>
+                        <td style="border: none; font-size: 15px;">__________________</td>
+                    </tr>
+                    <tr>
+                        <td style="font-size: 15px; border: none;">Dropping</td>
+                        <td style="text-align: center; border: none;">:</td>
+                        <td style="border: none; font-size: 15px;">__________________</td>
+                    </tr>
+                </table>
+            </td>
 
+        </tr>
+    </table>
     <table>
         <thead>
             <tr class="text-center">
                 <th class="col-no">No</th>
+                <th class="col-pelanggan">Pelanggan</th>
                 <th class="col-faktur">No Faktur</th>
                 <th class="col-tanggal">Tanggal</th>
-                <th class="col-pelanggan">Pelanggan</th>
                 <th class="col-sales">Sales</th>
-                <th class="col-wilayah">Wilayah</th>
                 <th class="col-total">Total</th>
                 <th class="col-keterangan">Keterangan</th>
             </tr>
@@ -108,23 +151,20 @@
                 @php $total += $d->grand_total; @endphp
                 <tr>
                     <td class="text-center">{{ $i + 1 }}</td>
+                    <td>{{ $d->nama_pelanggan }}</td>
                     <td>{{ $d->no_faktur }}</td>
                     <td>{{ tanggal_indo2($d->tanggal) }}</td>
-                    <td>{{ $d->nama_pelanggan }}</td>
                     <td>{{ $d->nama_sales }}</td>
-                    <td>{{ $d->nama_wilayah }}</td>
                     <td class="text-end">{{ number_format($d->grand_total, 0, ',', '.') }}</td>
                     <td></td>
                 </tr>
             @endforeach
-        </tbody>
-        <tfoot>
             <tr class="highlight">
-                <td colspan="6" class="text-end">TOTAL</td>
+                <td colspan="5" class="text-end">TOTAL</td>
                 <td class="text-end">Rp{{ number_format($total, 0, ',', '.') }}</td>
                 <td></td>
             </tr>
-        </tfoot>
+        </tbody>
     </table>
 
 </body>

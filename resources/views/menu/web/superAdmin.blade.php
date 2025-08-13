@@ -30,6 +30,12 @@
             </li>
             <li><a href="{{ url('viewPelanggan') }}"><i class="bi bi-people"></i><span>Pelanggan</span></a>
             </li>
+            <li><a href="{{ url('hargaBarang') }}"><i class="bi bi-people"></i><span>Harga Barang</span></a>
+            </li>
+            <li><a href="{{ url('diskonBarang') }}"><i class="bi bi-people"></i><span>Diskon Per-Barang</span></a>
+            </li>
+            <li><a href="{{ url('diskonSupplier') }}"><i class="bi bi-people"></i><span>Diskon All Barang</span></a>
+            </li>
         </ul>
     </li>
 

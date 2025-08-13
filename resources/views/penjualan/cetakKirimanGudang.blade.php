@@ -100,11 +100,45 @@
 </head>
 
 <body>
-    <div class="header-title">REKAP KIRIMAN BARANG </div>
-    <div class="header-subtitle">
-        Tanggal Pengiriman: {{ tanggal_indo2($tanggal) }}<br>
-        Wilayah: {{ $wilayah->nama_wilayah ?? '-' }}
-    </div>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+        <tr>
+            <td colspan="2"
+                style="text-align: center; font-size: 24px; font-weight: bold; padding-bottom: 5px; border: none;">
+                REKAP KIRIMAN BARANG
+            </td>
+        </tr>
+        <tr>
+            <td style="width: 60%; border: none; vertical-align: top;">
+                <table style="border-collapse: collapse; width: 100%;">
+                    <tr>
+                        <td style="width: 20%; font-size: 15px; border: none;">Tanggal Pengiriman</td>
+                        <td style="width: 5%; text-align: center; border: none;">:</td>
+                        <td style="border: none; font-size: 15px;">{{ tanggal_indo2($tanggal) }}</td>
+                    </tr>
+                    <tr>
+                        <td style="font-size: 15px; border: none;">Wilayah</td>
+                        <td style="text-align: center; border: none;">:</td>
+                        <td style="border: none; font-size: 15px;">{{ $wilayah->nama_wilayah ?? '-' }}</td>
+                    </tr>
+                </table>
+            </td>
+            {{-- <td style="width: 40%; border: none; vertical-align: top;">
+                <table style="border-collapse: collapse; width: 100%;">
+                    <tr>
+                        <td style="width: 40%; font-size: 15px; border: none;">Dropping</td>
+                        <td style="width: 5%; text-align: center; border: none;">:</td>
+                        <td style="border: none; font-size: 15px;">__________________</td>
+                    </tr>
+                    <tr>
+                        <td style="font-size: 15px; border: none;">Kenek</td>
+                        <td style="text-align: center; border: none;">:</td>
+                        <td style="border: none; font-size: 15px;">__________________</td>
+                    </tr>
+                </table>
+            </td> --}}
+
+        </tr>
+    </table>
 
     <div class="container">
         <!-- Detail Barang (col-8) -->
@@ -119,18 +153,24 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php $no = 1; @endphp
-                    @foreach ($kiriman as $d)
-                        @foreach ($detail[$d->no_faktur] as $dt)
-                            <tr>
-                                <td class="text-center">{{ $no++ }}</td>
-                                <td>{{ $dt->kode_barang }}</td>
-                                <td class="text-start">{{ $dt->nama_barang }}</td>
-                                <td class="text-center">
-                                    {{ konversiQtySatuan($dt->qty, $barangSatuan[$dt->kode_barang]) }}
-                                </td>
-                            </tr>
-                        @endforeach
+                    @php
+                        $no = 1;
+                    @endphp
+                    @foreach ($groupedDetails as $item)
+                        <tr>
+                            <td class="text-center">{{ $no++ }}</td>
+                            <td>{{ $item['kode_barang'] }}</td>
+                            <td>{{ $item['nama_barang'] }}</td>
+                            <td class="text-start">
+                                @php
+                                    $qtyStrings = [];
+                                    foreach ($item['satuan'] as $satuan => $qty) {
+                                        $qtyStrings[] = number_format($qty, 0, ',', '.') . ' ' . $satuan;
+                                    }
+                                    echo implode(' ', $qtyStrings);
+                                @endphp
+                            </td>
+                        </tr>
                     @endforeach
                 </tbody>
             </table>

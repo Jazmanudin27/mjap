@@ -29,25 +29,20 @@
                                 <div class="col-md-6 col-lg-4">
                                     <select name="supplier" class="form-select2 form-select-sm">
                                         <option value="">Supplier</option>
-                                        @foreach($suppliers as $s)
-                                            <option value="{{ $s->kode_supplier }}" {{ request('supplier') == $s->kode_supplier ? 'selected' : '' }}>{{ $s->nama_supplier }}</option>
+                                        @foreach ($suppliers as $s)
+                                            <option value="{{ $s->kode_supplier }}"
+                                                {{ request('supplier') == $s->kode_supplier ? 'selected' : '' }}>
+                                                {{ $s->nama_supplier }}</option>
                                         @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-6 col-lg-4">
-                                    <select name="jenis" class="form-select2 form-select-sm">
-                                        <option value="">Jenis</option>
-                                        <option value="makanan" {{ request('jenis') == 'makanan' ? 'selected' : '' }}>Makanan
-                                        </option>
-                                        <option value="minuman" {{ request('jenis') == 'minuman' ? 'selected' : '' }}>Minuman
-                                        </option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 col-lg-4">
                                     <select name="status" class="form-select2 form-select-sm">
                                         <option value="">Status</option>
-                                        <option value="1" {{ request('status') === '1' ? 'selected' : '' }}>Aktif</option>
-                                        <option value="0" {{ request('status') === '0' ? 'selected' : '' }}>Non Aktif</option>
+                                        <option value="1" {{ request('status') === '1' ? 'selected' : '' }}>Aktif
+                                        </option>
+                                        <option value="0" {{ request('status') === '0' ? 'selected' : '' }}>Non Aktif
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 col-lg-4 d-grid">

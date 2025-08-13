@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DiskonController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\MutasiBarangKeluarController;
 use App\Http\Controllers\PelangganController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\TargetSalesController;
 use App\Http\Controllers\TransferGiroController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
 
 Route::get('/', [AuthController::class, 'login'])->name('login');
 Route::post('/', [AuthController::class, 'auth_login']);
@@ -75,8 +77,17 @@ Route::group(['middleware' => 'useradmin'], function () {
         Route::post('storeDiskonStarla', 'storeDiskonStarla')->name('storeDiskonStarla');
         Route::post('deleteDiskonStrata/{id}', 'deleteDiskonStrata')->name('deleteDiskonStrata');
         Route::post('cetakLaporanBarang', 'cetakLaporanBarang')->name('cetakLaporanBarang');
+        Route::get('hargaBarang', 'hargaBarang')->name('hargaBarang');
+        Route::post('updateHargaBarang', 'updateHargaBarang')->name('updateHargaBarang');
     });
 
+    Route::controller(DiskonController::class)->group(function () {
+        Route::get('diskonBarang', 'diskonBarang')->name('diskonBarang');
+        Route::get('diskonSupplier', 'diskonSupplier')->name('diskonSupplier');
+        Route::post('storeDiskon', 'storeDiskon')->name('storeDiskon');
+        Route::post('updateDiskon/{id}', 'updateDiskon')->name('updateDiskon');
+        Route::get('deleteDiskon/{id}', 'deleteDiskon')->name('deleteDiskon');
+    });
     Route::controller(PelangganController::class)->group(function () {
         Route::get('viewPelanggan', 'index')->name('viewPelanggan');
         Route::get('tambahPelanggan', 'create')->name('tambahPelanggan');
@@ -146,6 +157,7 @@ Route::group(['middleware' => 'useradmin'], function () {
         Route::get('getBarang', 'getBarang')->name('getBarang');
         Route::get('cekDiskon/{kode_barang}/{jumlah}', 'cekDiskon')->name('cekDiskon');
         Route::get('getDiskonStrataSemua/{kode_barang}/{jumlah}/{tipe}', 'getDiskonStrataSemua')->name('getDiskonStrataSemua');
+        Route::get('getDiskonStrataSupplier/{kode_supplier}/{jumlah}/{tipe}', 'getDiskonStrataSupplier')->name('getDiskonStrataSupplier');
         Route::get('getFakturByWilayah/{id}', 'getFakturByWilayah')->name('getFakturByWilayah');
         Route::post('deleteKirimanSales/{id}', 'deleteKirimanSales')->name('deleteKirimanSales');
         Route::get('cetakFaktur1/{id}', 'cetakFaktur1')->name('cetakFaktur1');
@@ -158,6 +170,18 @@ Route::group(['middleware' => 'useradmin'], function () {
         Route::get('trackingSales', 'trackingSales')->name('trackingSales');
         Route::get('trackingSales', 'trackingSales')->name('trackingSales');
         Route::post('deleteDetailPenjualan/{id}', 'deleteDetailPenjualan')->name('deleteDetailPenjualan');
+        Route::post('deleteGroupKirimanSales', 'deleteGroupKirimanSales')->name('deleteGroupKirimanSales');
+    });
+
+    Route::get('/getKonversiSatuan/{kode_barang}', function ($kode_barang) {
+        return response()->json(getKonversiSatuan($kode_barang));
+    });
+
+    Route::get('/getDiskonStrataSemuaGlobal', function () {
+        $diskon = DB::table('diskon_strata')
+            ->whereNull('kode_barang')
+            ->get();
+        return response()->json($diskon);
     });
 
     Route::controller(ReturPembelianController::class)->group(function () {
@@ -210,6 +234,7 @@ Route::group(['middleware' => 'useradmin'], function () {
         Route::get('laporanPenjualan', 'laporanPenjualan')->name('laporanPenjualan');
         Route::post('cetakLaporanPenjualan', 'cetakLaporanPenjualan')->name('cetakLaporanPenjualan');
         Route::post('cetakLaporanPenjualanHarian', 'cetakLaporanPenjualanHarian')->name('cetakLaporanPenjualanHarian');
+        Route::post('cetakRekapTagihan', 'cetakRekapTagihan')->name('cetakRekapTagihan');
         Route::post('cetakLaporanRekapPerPelanggan', 'cetakLaporanRekapPerPelanggan')->name('cetakLaporanRekapPerPelanggan');
         Route::post('cetakLaporanReturPenjualan', 'cetakLaporanReturPenjualan')->name('cetakLaporanReturPenjualan');
         Route::post('cetakKartuPiutang', 'cetakKartuPiutang')->name('cetakKartuPiutang');
@@ -255,7 +280,8 @@ Route::group(['middleware' => 'useradmin'], function () {
         Route::get('createSaldoAwalBS', 'createSaldoAwalBS')->name('createSaldoAwalBS');
         Route::post('storeSaldoAwalGS', 'storeSaldoAwalGS')->name('storeSaldoAwalGS');
         Route::post('storeSaldoAwalBS', 'storeSaldoAwalBS')->name('storeSaldoAwalBS');
-        Route::get('getBarangBySupplier/{id}', 'getBarangBySupplier')->name('getBarangBySupplier');
+        Route::get('getBarangBSBySupplier/{id}', 'getBarangBSBySupplier')->name('getBarangBSBySupplier');
+        Route::get('getBarangGSBySupplier/{id}', 'getBarangGSBySupplier')->name('getBarangGSBySupplier');
         Route::post('storeSaldoAwalGS', 'storeSaldoAwalGS')->name('storeSaldoAwalGS');
     });
 
@@ -263,6 +289,7 @@ Route::group(['middleware' => 'useradmin'], function () {
         Route::get('laporanGudang', 'laporanGudang')->name('laporanGudang');
         Route::post('cetakLaporanPersediaanGS', 'cetakLaporanPersediaanGS')->name('cetakLaporanPersediaanGS');
         Route::post('cetakLaporanPersediaanBS', 'cetakLaporanPersediaanBS')->name('cetakLaporanPersediaanBS');
+        Route::post('cetakKartuStok', 'cetakKartuStok')->name('cetakKartuStok');
         Route::post('cetakLaporanPersediaan', 'cetakLaporanPersediaan')->name('cetakLaporanPersediaan');
         Route::post('cetakLaporanMutasiBarang', 'cetakLaporanMutasiBarang')->name('cetakLaporanMutasiBarang');
     });

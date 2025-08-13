@@ -39,7 +39,7 @@
             <div class="position-relative">
                 {{-- Logo --}}
                 <div class="text-start">
-                    <img src="{{ asset('assets/img/DIS.png') }}" alt="Logo" height="60">
+                    <img src="{{ asset('assets/img/DIS2.png') }}" alt="Logo" height="60">
                 </div>
                 <a href="{{ route('mobile.logout') }}" class="position-absolute top-0 end-0 me-2 mt-2 text-decoration-none"
                     title="Keluar">

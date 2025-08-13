@@ -21,6 +21,7 @@ class LaporanPenjualanController extends Controller
             ->where('status', '1')
             ->orderBy('nama_pelanggan')
             ->get();
+        $data['wilayah'] = getWilayah();
 
         return view('laporan.penjualan.laporanPenjualan', $data);
     }
@@ -87,9 +88,9 @@ class LaporanPenjualanController extends Controller
             ->when($request->filled('salesman'), function ($q) use ($request) {
                 $q->where('p.kode_sales', $request->salesman);
             })
-            ->when($user->role == 'spv sales' && !$request->filled('salesman'), function ($q) use ($user) {
-                $q->where('s.divisi', $user->nik);
-            })
+            // ->when($user->role == 'spv sales' && !$request->filled('salesman'), function ($q) use ($user) {
+            //     $q->where('s.divisi', $user->nik);
+            // })
             ->whereBetween('p.tanggal', [$mulai, $akhir])
             ->orderBy('p.tanggal')
             ->orderBy('p.no_faktur')
@@ -127,11 +128,124 @@ class LaporanPenjualanController extends Controller
         }
     }
 
+    public function laporanRekapTagihan()
+    {
+        $data['sales'] = getSales();
+        $data['wilayah'] = getWilayah();
+
+        return view('laporan.penjualan.laporanRekapTagihan', $data);
+    }
+
     public function laporanPenjualanHarian()
     {
         $data['sales'] = getSales();
 
         return view('laporan.penjualan.laporanPenjualanHarian', $data);
+    }
+
+    public function cetakRekapTagihan(Request $request)
+    {
+        $tanggal = $request->tanggal ?? now()->toDateString();
+        $kodeWilayah = $request->wilayah;
+        $kodeSales = $request->salesman;
+
+        $data = DB::table('pelanggan as pl')
+            ->leftJoin('penjualan as p', function ($join) use ($tanggal, $kodeSales) {
+                $join->on('p.kode_pelanggan', '=', 'pl.kode_pelanggan')
+                    ->where('p.kode_sales', $kodeSales)
+                    ->whereDate('p.tanggal_kirim', '<=', $tanggal);
+            })
+            ->leftJoin('penjualan_pembayaran as pp', function ($join) use ($tanggal, $kodeSales) {
+                $join->on('pp.no_faktur', '=', 'p.no_faktur')
+                    ->where('pp.kode_sales', $kodeSales)
+                    ->whereDate('pp.tanggal', '<=', $tanggal);
+            })
+            ->leftJoin('penjualan_pembayaran_transfer as ppt', function ($join) use ($tanggal, $kodeSales) {
+                $join->on('ppt.no_faktur', '=', 'p.no_faktur')
+                    ->where('ppt.kode_sales', $kodeSales)
+                    ->whereDate('ppt.tanggal', '<=', $tanggal);
+            })
+            ->leftJoin('penjualan_pembayaran_giro as ppg', function ($join) use ($tanggal, $kodeSales) {
+                $join->on('ppg.no_faktur', '=', 'p.no_faktur')
+                    ->where('ppg.kode_sales', $kodeSales)
+                    ->whereDate('ppg.tanggal', '<=', $tanggal);
+            })
+            ->leftJoin('retur_penjualan as rj', function ($join) use ($tanggal, $kodeSales) {
+                $join->on('rj.no_faktur', '=', 'p.no_faktur')
+                    ->where('rj.kode_sales', $kodeSales)
+                    ->where('rj.jenis_retur', 'PF')
+                    ->whereDate('rj.tanggal', '<=', $tanggal);
+            })
+            ->selectRaw('
+        pl.kode_pelanggan,
+        pl.nama_pelanggan,
+        p.no_faktur,
+        p.tanggal_kirim as tanggal,
+        p.jenis_transaksi,
+        p.batal,
+        p.grand_total,
+
+        SUM(CASE WHEN p.batal = 0 THEN p.grand_total ELSE 0 END) as total_faktur,
+
+        SUM(CASE WHEN pp.jenis_bayar = "tunai" THEN pp.jumlah ELSE 0 END) as bayar_tunai,
+        SUM(CASE WHEN pp.jenis_bayar = "titipan" THEN pp.jumlah ELSE 0 END) as bayar_titipan,
+        SUM(CASE WHEN pp.jenis_bayar = "voucher" THEN pp.jumlah ELSE 0 END) as bayar_voucher,
+        SUM(COALESCE(ppt.jumlah, 0)) as bayar_transfer,
+        SUM(COALESCE(ppg.jumlah, 0)) as bayar_giro,
+        SUM(COALESCE(rj.total, 0)) as potong_faktur,
+
+        SUM(
+            COALESCE(pp.jumlah, 0) +
+            COALESCE(ppt.jumlah, 0) +
+            COALESCE(ppg.jumlah, 0) +
+            COALESCE(rj.total, 0)
+        ) as total_bayar,
+
+        CASE WHEN p.batal = 0 THEN
+            p.grand_total - (
+                SUM(COALESCE(pp.jumlah, 0)) +
+                SUM(COALESCE(ppt.jumlah, 0)) +
+                SUM(COALESCE(ppg.jumlah, 0)) +
+                SUM(COALESCE(rj.total, 0))
+            )
+        ELSE 0 END as sisa_tagihan
+    ')
+            ->where(function ($q) {
+                $q->whereNotNull('p.no_faktur');
+            })
+            ->where('p.batal', '!=', '1')
+            ->where('pl.kode_wilayah', $kodeWilayah)
+            ->groupBy(
+                'pl.kode_pelanggan',
+                'pl.nama_pelanggan',
+                'p.no_faktur',
+                'p.tanggal_kirim',
+                'p.jenis_transaksi',
+                'p.batal',
+                'p.grand_total'
+            )
+            ->havingRaw('
+                p.grand_total - (
+                    SUM(COALESCE(pp.jumlah, 0)) +
+                    SUM(COALESCE(ppt.jumlah, 0)) +
+                    SUM(COALESCE(ppg.jumlah, 0)) +
+                    SUM(COALESCE(rj.total, 0))
+                ) > 0
+            ')
+            ->orderBy('pl.nama_pelanggan')
+            ->get();
+
+        if ($request->has('export')) {
+            return Excel::download(
+                new LaporanExport('laporan.penjualan.cetakRekapTagihan', [
+                    'data' => $data,
+                    'tanggal' => $tanggal,
+                ]),
+                'Laporan_Rekap_Tagihan.xlsx'
+            );
+        }
+
+        return view('laporan.penjualan.cetakRekapTagihan', compact('data', 'tanggal'));
     }
 
     public function cetaklaporanPenjualanHarian(Request $request)
@@ -140,46 +254,50 @@ class LaporanPenjualanController extends Controller
         $kodeSales = $request->salesman;
 
         $data = DB::table('pelanggan as pl')
-            ->leftJoin('penjualan as p', function ($join) use ($tanggal, $kodeSales) {
-                $join->on('p.kode_pelanggan', '=', 'pl.kode_pelanggan')
-                    ->where('p.kode_sales', $kodeSales)
-                    ->whereDate('p.tanggal_kirim', $tanggal);
-            })
-            ->leftJoin('penjualan_pembayaran as pp', function ($join) use ($tanggal, $kodeSales) {
-                $join->on('pp.no_faktur', '=', 'p.no_faktur')
-                    ->whereDate('pp.tanggal', $tanggal)
-                    ->where('pp.kode_sales', $kodeSales);
-            })
-            ->leftJoin('penjualan_pembayaran_transfer as ppt', function ($join) use ($tanggal, $kodeSales) {
-                $join->on('ppt.no_faktur', '=', 'p.no_faktur')
-                    ->whereDate('ppt.tanggal', $tanggal)
-                    ->where('ppt.kode_sales', $kodeSales);
-            })
-            ->leftJoin('penjualan_pembayaran_giro as ppg', function ($join) use ($tanggal, $kodeSales) {
-                $join->on('ppg.no_faktur', '=', 'p.no_faktur')
-                    ->whereDate('ppg.tanggal', $tanggal)
-                    ->where('ppg.kode_sales', $kodeSales);
-            })
+            ->leftJoin('penjualan as p', 'p.kode_pelanggan', '=', 'pl.kode_pelanggan')
+            ->leftJoin('penjualan_pembayaran as pp', 'pp.no_faktur', '=', 'p.no_faktur')
+            ->leftJoin('penjualan_pembayaran_transfer as ppt', 'ppt.no_faktur', '=', 'p.no_faktur')
+            ->leftJoin('penjualan_pembayaran_giro as ppg', 'ppg.no_faktur', '=', 'p.no_faktur')
             ->selectRaw('
-                pl.kode_pelanggan,
-                pl.nama_pelanggan,
-                p.no_faktur,
-                p.tanggal_kirim as tanggal,
-                p.jenis_transaksi,
-                p.batal,
-                p.grand_total,
-                SUM(CASE WHEN p.jenis_transaksi = "K" AND DATE(p.tanggal_kirim) = "' . $tanggal . '" THEN p.grand_total ELSE 0 END) as kredit,
-                SUM(CASE WHEN pp.jenis_bayar = "tunai" THEN pp.jumlah ELSE 0 END) as tunai,
-                SUM(CASE WHEN pp.jenis_bayar = "titipan" THEN pp.jumlah ELSE 0 END) as titipan,
-                SUM(CASE WHEN pp.jenis_bayar = "voucher" THEN pp.jumlah ELSE 0 END) as voucher,
-                SUM(COALESCE(ppt.jumlah, 0)) as transfer,
-                SUM(COALESCE(ppg.jumlah, 0)) as giro
-            ')
-            ->where(function ($q) {
-                $q->whereNotNull('p.no_faktur')
-                    ->orWhereNotNull('pp.jumlah')
-                    ->orWhereNotNull('ppt.jumlah')
-                    ->orWhereNotNull('ppg.jumlah');
+        pl.kode_pelanggan,
+        pl.nama_pelanggan,
+        p.no_faktur,
+        p.kode_sales,
+        p.tanggal_kirim as tanggal,
+        p.jenis_transaksi,
+        p.batal,
+        p.grand_total,
+        SUM(CASE WHEN p.jenis_transaksi = "K" AND DATE(p.tanggal_kirim) = ? THEN p.grand_total ELSE 0 END) as kredit,
+        SUM(CASE WHEN pp.jenis_bayar = "tunai" AND DATE(pp.tanggal) = ? AND pp.kode_sales = ? THEN pp.jumlah ELSE 0 END) as tunai,
+        SUM(CASE WHEN pp.jenis_bayar = "titipan" AND DATE(pp.tanggal) = ? AND pp.kode_sales = ? THEN pp.jumlah ELSE 0 END) as titipan,
+        SUM(CASE WHEN pp.jenis_bayar = "voucher" AND DATE(pp.tanggal) = ? AND pp.kode_sales = ? THEN pp.jumlah ELSE 0 END) as voucher,
+        SUM(CASE WHEN DATE(ppt.tanggal) = ? AND ppt.kode_sales = ? THEN ppt.jumlah ELSE 0 END) as transfer,
+        SUM(CASE WHEN DATE(ppg.tanggal) = ? AND ppg.kode_sales = ? THEN ppg.jumlah ELSE 0 END) as giro
+    ', [
+                $tanggal,
+                $tanggal,
+                $kodeSales,
+                $tanggal,
+                $kodeSales,
+                $tanggal,
+                $kodeSales,
+                $tanggal,
+                $kodeSales,
+                $tanggal,
+                $kodeSales,
+            ])
+            ->where('p.kode_sales', $kodeSales)
+            ->where(function ($q) use ($tanggal, $kodeSales) {
+                $q->whereDate('p.tanggal_kirim', $tanggal)
+                    ->orWhere(function ($q2) use ($tanggal, $kodeSales) {
+                        $q2->whereDate('pp.tanggal', $tanggal)->where('pp.kode_sales', $kodeSales);
+                    })
+                    ->orWhere(function ($q2) use ($tanggal, $kodeSales) {
+                        $q2->whereDate('ppt.tanggal', $tanggal)->where('ppt.kode_sales', $kodeSales);
+                    })
+                    ->orWhere(function ($q2) use ($tanggal, $kodeSales) {
+                        $q2->whereDate('ppg.tanggal', $tanggal)->where('ppg.kode_sales', $kodeSales);
+                    });
             })
             ->groupBy(
                 'pl.kode_pelanggan',
@@ -187,6 +305,7 @@ class LaporanPenjualanController extends Controller
                 'p.no_faktur',
                 'p.tanggal_kirim',
                 'p.jenis_transaksi',
+                'p.batal',
                 'p.grand_total'
             )
             ->orderBy('pl.nama_pelanggan')

@@ -98,7 +98,6 @@
                 <th>D1</th>
                 <th>D2</th>
                 <th>D3</th>
-                <th>D4</th>
                 <th>Total Barang</th>
                 <th>Bayar</th>
                 <th>Sisa</th>
@@ -154,18 +153,23 @@
                         <td style="{{ $promoStyle }}">{{ $item->nama_barang }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->kategori }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->merk }}</td>
-                        <td class="text-end" style="{{ $promoStyle }}">{{ $item->qty }}</td>
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->qty > 0 ? number_format($item->qty, 2, ',', '') : '' }}
+                        </td>
                         <td style="{{ $promoStyle }}">{{ $item->satuan }}</td>
                         <td class="text-end" style="{{ $promoStyle }}">{{ formatAngka($item->harga) }}</td>
                         <td class="text-center" style="{{ $promoStyle }}">
-                            {{ $item->diskon1_persen > 0 ? number_format($item->diskon1_persen, 2) : '' }}</td>
+                            {{ $item->diskon1_persen > 0 ? number_format($item->diskon1_persen, 2, ',', '') : '' }}
+                        </td>
                         <td class="text-center" style="{{ $promoStyle }}">
-                            {{ $item->diskon2_persen > 0 ? number_format($item->diskon2_persen, 2) : '' }}</td>
+                            {{ $item->diskon2_persen > 0 ? number_format($item->diskon2_persen, 2, ',', '') : '' }}
+                        </td>
                         <td class="text-center" style="{{ $promoStyle }}">
-                            {{ $item->diskon3_persen > 0 ? number_format($item->diskon3_persen, 2) : '' }}</td>
-                        <td class="text-center" style="{{ $promoStyle }}">
-                            {{ $item->diskon4_persen > 0 ? number_format($item->diskon4_persen, 2) : '' }}</td>
-
+                            {{ $item->diskon3_persen > 0 ? number_format($item->diskon3_persen, 2, ',', '') : '' }}
+                        </td>
+                        {{-- <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon4_persen > 0 ? number_format($item->diskon4_persen, 2, ',', '') : '' }}
+                        </td> --}}
                         <td class="text-end" style="{{ $promoStyle }}">{{ formatAngka($item->total) }}</td>
                         <td class="text-end text-success">{{ formatAngka($d->sudah_bayar) }}</td>
                         <td class="text-end text-danger">{{ formatAngka($d->sisa) }}</td>
@@ -179,7 +183,7 @@
                         </td>
                         <td class="text-center">{{ \Carbon\Carbon::parse($d->created_at)->format('d M Y H:i') }}</td>
                         <td class="text-center">{{ \Carbon\Carbon::parse($d->updated_at)->format('d M Y H:i') }}</td>
-                        <td class="text-center">{{ $d->penginput }}</td>
+                        <td class="text-start">{{ $d->penginput }}</td>
                     </tr>
                 @endforeach
             @empty
@@ -190,7 +194,7 @@
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="17" class="text-end">TOTAL</td>
+                <td colspan="16" class="text-end">TOTAL</td>
                 <td class="text-end">{{ formatAngka($totalAll) }}</td>
                 <td class="text-end">{{ formatAngka($diskonAll) }}</td>
                 <td class="text-end">{{ formatAngka($grandAll) }}</td>
@@ -200,7 +204,7 @@
             </tr>
             @if ($totalBatal > 0)
                 <tr style="background:#ffe3e3;">
-                    <td colspan="17" class="text-end text-danger fw-bold">TOTAL FAKTUR BATAL</td>
+                    <td colspan="16" class="text-end text-danger fw-bold">TOTAL FAKTUR BATAL</td>
                     <td class="text-end text-danger fw-bold">{{ formatAngka($totalBatal) }}</td>
                     <td class="text-end text-danger fw-bold">{{ formatAngka($diskonBatal) }}</td>
                     <td class="text-end text-danger fw-bold">{{ formatAngka($grandBatal) }}</td>

@@ -60,20 +60,20 @@
                     <td>{{ $d->nama_sales }}</td>
                     <td>{{ $d->pasar_daerah }}</td>
                     <td class="text-center">{{ tanggal_indo($d->jatuh_tempo) }}</td>
-                    <td class="text-end">{{ rupiah($grand_total) }}</td>
-                    <td class="text-end">{{ rupiah($retur) }}</td>
-                    <td class="text-end">{{ rupiah($bayar) }}</td>
-                    <td class="text-end fw-bold">{{ rupiah($saldo_akhir) }}</td>
+                    <td class="text-end">{{ formatAngka($grand_total) }}</td>
+                    <td class="text-end">{{ formatAngka($retur) }}</td>
+                    <td class="text-end">{{ formatAngka($bayar) }}</td>
+                    <td class="text-end fw-bold">{{ formatAngka($saldo_akhir) }}</td>
                 </tr>
             @endforeach
         </tbody>
         <tfoot style="background:#f1f1f1;">
             <tr>
                 <td colspan="11" class="text-end fw-bold">TOTAL</td>
-                <td class="text-end fw-bold">{{ rupiah($totalPiutang) }}</td>
-                <td class="text-end fw-bold">{{ rupiah($totalRetur) }}</td>
-                <td class="text-end fw-bold">{{ rupiah($totalBayar) }}</td>
-                <td class="text-end fw-bold">{{ rupiah($totalSaldoAkhir) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($totalPiutang) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($totalRetur) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($totalBayar) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($totalSaldoAkhir) }}</td>
             </tr>
         </tfoot>
     </table>

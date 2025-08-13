@@ -35,20 +35,20 @@
                     <td class="text-center">{{ $no++ }}</td>
                     <td>{{ $d->nama_pelanggan }}</td>
                     <td class="text-center">{{ $d->kode_pelanggan }}</td>
-                    <td class="text-end">{{ rupiah($d->total) }}</td>
-                    <td class="text-end">{{ rupiah($d->bayar) }}</td>
-                    <td class="text-end">{{ rupiah($d->retur) }}</td>
-                    <td class="text-end fw-bold">{{ rupiah($d->sisa) }}</td>
+                    <td class="text-end">{{ formatAngka($d->total) }}</td>
+                    <td class="text-end">{{ formatAngka($d->bayar) }}</td>
+                    <td class="text-end">{{ formatAngka($d->retur) }}</td>
+                    <td class="text-end fw-bold">{{ formatAngka($d->sisa) }}</td>
                 </tr>
             @endforeach
         </tbody>
         <tfoot>
             <tr style="background-color: #f8f9fa;">
                 <td colspan="3" class="text-end fw-bold">TOTAL</td>
-                <td class="text-end fw-bold">{{ rupiah($totalAll) }}</td>
-                <td class="text-end fw-bold">{{ rupiah($bayarAll) }}</td>
-                <td class="text-end fw-bold">{{ rupiah($returAll) }}</td>
-                <td class="text-end fw-bold">{{ rupiah($sisaAll) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($totalAll) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($bayarAll) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($returAll) }}</td>
+                <td class="text-end fw-bold">{{ formatAngka($sisaAll) }}</td>
             </tr>
         </tfoot>
     </table>

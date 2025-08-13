@@ -93,12 +93,12 @@
 
         .header-title {
             font-weight: bold;
-            font-size: 20px;
+            font-size: 18px;
         }
 
         .header-subtitle {
             font-weight: bold;
-            font-size: 15px;
+            font-size: 14px;
             margin-bottom: 2px;
         }
 
@@ -178,8 +178,13 @@
         <table class="header-table" style="margin: 10px 0;">
             <tr>
                 <td style="width: 30%;">
-                    <div class="header-title">FAKTUR PENJUALAN</div>
-                    <div class="header-subtitle">CV MITRA JAYA ABADI PERSADA</div>
+                    <div style="display: flex; align-items: center; gap: 5px;padding-bottom:8px;">
+                        <img src="{{ asset('assets/img/MJAP.png') }}" alt="Logo MJAP" style="height: 50px;">
+                        <div>
+                            <div class="header-title">FAKTUR PENJUALAN</div>
+                            <div class="header-subtitle">CV MITRA JAYA ABADI PERSADA</div>
+                        </div>
+                    </div>
                     <div class="header-address">SIRNAGALIH INDIHIANG</div>
                     <div class="header-address">TASIKMALAYA</div>
                     <div class="header-address">Rek: CIMB NIAGA</div>

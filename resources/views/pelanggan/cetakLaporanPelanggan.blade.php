@@ -81,7 +81,7 @@
                     <td class="text-end">{{ $p->latitude }}</td>
                     <td class="text-end">{{ $p->longitude }}</td>
                     <td>{{ $p->status == 1 ? 'Aktif' : 'Nonaktif' }}</td>
-                    <td>{{ $p->kode_wilayah }}</td>
+                    <td>{{ $p->nama_wilayah }}</td>
                     <td>{{ $p->email }}</td>
                     <td>{{ $p->created_at }}</td>
                     <td>{{ $p->updated_at }}</td>

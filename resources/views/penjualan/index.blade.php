@@ -151,7 +151,6 @@
                                                         </span>
                                                     @endif
                                                 </a>
-
                                                 {{-- @if ($p->batal != '1' && !$p->tanggal_kirim) --}}
                                                     <a href="#" class="btn btn-sm btn-danger batalPenjualan"
                                                         data-no="{{ $p->no_faktur }}">
@@ -165,6 +164,11 @@
                                                         class="btn btn-sm btn-warning">
                                                         <i class="fa fa-pencil"></i>
                                                     </a>
+                                                {{-- @elseif ($p->batal != '1' && $p->tanggal_kirim) --}}
+                                                    {{-- <a href="#" class="btn btn-sm btn-danger batalPenjualan"
+                                                        data-no="{{ $p->no_faktur }}">
+                                                        <i class="fa fa-ban"></i>
+                                                    </a> --}}
                                                 {{-- @endif --}}
                                             </td>
                                         </tr>

@@ -245,6 +245,10 @@
 
             $(document).on('click', '.btn-hapus', function() {
                 const id = $(this).data('id');
+
+                // Ambil query string dari URL sekarang (misalnya ?tanggal_dari=...&tanggal_sampai=...&kode_bank=...)
+                const queryString = window.location.search;
+
                 Swal.fire({
                     title: 'Yakin ingin menghapus?',
                     text: "Data yang dihapus tidak bisa dikembalikan.",
@@ -256,9 +260,9 @@
                     cancelButtonText: 'Batal'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        window.location.href = `/deleteKasBank/${id}`;
+                        window.location.href = `/deleteKasBank/${id}${queryString}`;
                     }
-                })
+                });
             });
 
             $('.btn-edit-mutasi').on('click', function() {
@@ -298,4 +302,3 @@
         });
     </script>
 @endsection
-

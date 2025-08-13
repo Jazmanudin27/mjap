@@ -26,6 +26,7 @@ class BarangController extends Controller
                 ->leftJoin('barang_satuan', 'barang_satuan.kode_barang', '=', 'barang.kode_barang')
                 ->select(
                     'barang.kode_barang',
+                    'barang.kode_item',
                     'barang.nama_barang',
                     'barang.kategori',
                     'barang.keterangan',
@@ -42,7 +43,9 @@ class BarangController extends Controller
             // Filter Condition
             $query->when($request->nama_barang, fn($q, $v) => $q->where('barang.nama_barang', 'like', "%$v%"));
             $query->when($request->kode_barang, fn($q, $v) => $q->where('barang.kode_barang', 'like', "%$v%"));
-            $query->when($request->supplier, fn($q, $v) => $q->where('barang.kode_supplier', $v));
+            $query->when($request->supplier, function ($q, $v) {
+                return $q->where('barang.kode_supplier', $v);
+            });
             $query->when($request->jenis, fn($q, $v) => $q->where('barang.jenis', $v));
             if ($request->filled('status')) {
                 $query->where('barang.status', $request->status);
@@ -69,6 +72,7 @@ class BarangController extends Controller
                     'barang.nama_barang',
                     'barang.kategori',
                     'barang.keterangan',
+                    'barang.kode_item',
                     'barang.stok_min',
                     'barang.jenis',
                     'barang.status',
@@ -79,7 +83,6 @@ class BarangController extends Controller
                     'barang_satuan.harga_jual'
                 );
 
-            // Filter Condition
             $query->when($request->nama_barang, fn($q, $v) => $q->where('barang.nama_barang', 'like', "%$v%"));
             $query->when($request->kode_barang, fn($q, $v) => $q->where('barang.kode_barang', 'like', "%$v%"));
             $query->when($request->supplier, fn($q, $v) => $q->where('barang.kode_supplier', $v));
@@ -96,9 +99,16 @@ class BarangController extends Controller
                 $supplierName = $supplier ? $supplier->nama_supplier : 'Supplier Tidak Diketahui';
             }
             $data['nama_supplier'] = $supplierName;
-            header("Content-type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            header("Content-Disposition: attachment; filename=Laporan Barang.xls");
-            return view('barang.cetakLaporanBarang', $data);
+
+            // Bersihkan semua buffer sebelum kirim header
+            if (ob_get_length())
+                ob_end_clean();
+
+            header("Content-Type: application/vnd.ms-excel");
+            header("Content-Disposition: attachment; filename=Laporan_Barang.xls");
+
+            echo view('barang.cetakLaporanBarang', $data)->render();
+            exit;
         }
 
 
@@ -113,11 +123,9 @@ class BarangController extends Controller
         $query->when($request->jenis, fn($q, $v) => $q->where('barang.jenis', $v));
         if ($request->filled('status')) {
             $query->where('barang.status', $request->status);
-        } else {
-            $query->where('barang.status', 1); // Default: aktif
         }
         $data['barang'] = $query->orderBy('barang.nama_barang')
-            ->paginate(10)
+            ->paginate(20)
             ->appends(request()->query());
 
         return view('barang.index', $data);
@@ -131,20 +139,40 @@ class BarangController extends Controller
 
     public function store(Request $request)
     {
-        $simpan = DB::table('barang')
-            ->insert([
-                'kode_barang' => $request->kode_barang,
-                'nama_barang' => $request->nama_barang,
-                'kategori' => $request->kategori,
-                'keterangan' => $request->keterangan,
-            ]);
+        // Ambil kode terakhir
+        $lastKode = DB::table('barang')->orderByDesc('kode_barang')->value('kode_barang');
+        if ($lastKode) {
+            $lastNumber = (int) substr($lastKode, 3);
+            $newNumber = $lastNumber + 1;
+        } else {
+            $newNumber = 1;
+        }
+
+        $kode_barang = 'BRG' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+
+        $simpan = DB::table('barang')->insert([
+            'kode_barang' => $kode_barang,
+            'nama_barang' => $request->nama_barang,
+            'kategori' => $request->kategori,
+            'merk' => $request->merk,
+            'keterangan' => $request->keterangan,
+            'stok_min' => $request->stok_min,
+            'kode_supplier' => $request->kode_supplier,
+            'status' => $request->status,
+            'jenis' => $request->jenis,
+            'kode_item' => $request->kode_item,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         if ($simpan) {
             logActivity('Tambah Barang', 'Barang ' . $request->nama_barang . ' ditambahkan');
-            return Redirect('viewBarang')->with(['success' => 'Data Berhasil Disimpan']);
+            return redirect('viewBarang')->with(['success' => 'Data Berhasil Disimpan']);
         } else {
-            return Redirect('viewBarang')->with(['warning' => 'Data Gagal Disimpan']);
+            return redirect('viewBarang')->with(['warning' => 'Data Gagal Disimpan']);
         }
     }
+
 
     public function delete(Request $request)
     {
@@ -350,5 +378,60 @@ class BarangController extends Controller
         )->orderBy('b.nama_barang')->orderBy('bs.isi')->get();
 
         return view('barang.cetakLaporanBarang', compact('data'));
+    }
+
+    public function hargaBarang(Request $request)
+    {
+        $query = DB::table('barang_satuan as bs')
+            ->leftJoin('barang as b', 'b.kode_barang', '=', 'bs.kode_barang')
+            ->leftJoin('supplier as s', 's.kode_supplier', '=', 'b.kode_supplier');
+        if ($request->filled('kode_barang')) {
+            $query->where('bs.kode_barang', $request->kode_barang);
+        }
+
+        if ($request->filled('kode_supplier')) {
+            $query->where('b.kode_supplier', $request->kode_supplier);
+        }
+
+        // ✅ Tambahan filter nama barang
+        if ($request->filled('nama_barang')) {
+            $query->where('b.nama_barang', 'like', '%' . $request->nama_barang . '%');
+        }
+
+        $data['satuanBarang'] = $query->select(
+            'bs.id',
+            'bs.kode_barang',
+            'b.kode_item',
+            'b.nama_barang',
+            'b.merk',
+            'b.kategori',
+            's.nama_supplier',
+            'bs.satuan',
+            'bs.isi',
+            'bs.harga_pokok',
+            'bs.harga_jual',
+            'bs.created_at',
+            'bs.updated_at'
+        )
+            ->where('b.status', '1')
+            ->orderBy('b.nama_barang')
+            ->orderBy('bs.isi')
+            ->limit('100')
+            ->get();
+        $data['suppliers'] = DB::table('supplier')->where('status', '1')->orderBy('nama_supplier', 'ASC')->get();
+
+        return view('barang.hargaBarang', $data);
+    }
+
+    public function updateHargaBarang(Request $request)
+    {
+        DB::table('barang_satuan')
+            ->where('id', $request->id)
+            ->update([
+                $request->field => $request->value,
+                'updated_at' => now()
+            ]);
+
+        return response()->json(['success' => true]);
     }
 }

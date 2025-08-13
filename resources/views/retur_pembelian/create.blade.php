@@ -182,18 +182,22 @@
                 keranjangRetur = JSON.parse(savedKeranjang);
                 keranjangRetur.forEach((item, i) => {
                     const row = `
-                            <tr data-kode="${item.kode_barang}">
-                                <td class="text-center">${i + 1}</td>
-                                <td>${item.kode_barang}</td>
-                                <td>${item.nama_barang}</td>
-                                <td><input type="number" class="form-control form-control-sm text-end qtyRetur" value="${item.qty}" min="1" data-kode="${item.kode_barang}" data-satuan_id="${item.satuan_id}"></td>
-                                <td><input type="text" class="form-control form-control-sm text-end hargaRetur" value="${formatRupiah(item.harga)}"></td>
-                                <td class="text-end subtotal">${formatRupiah(item.subtotal)}</td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger btn-hapus"><i class="bi bi-x"></i></button>
-                                </td>
-                            </tr>
-                        `;
+                        <tr data-kode="${item.kode_barang}">
+                            <td class="text-center">${i + 1}</td>
+                            <td>${item.kode_barang}</td>
+                            <td>${item.nama_barang}</td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm text-end qtyRetur"
+                                value="${item.qty}" data-kode="${item.kode_barang}"
+                                max="${item.qty}" min="0.01" step="0.01">
+                            </td>
+                            <td><input type="text" class="form-control form-control-sm text-end hargaRetur" value="${formatRupiah(item.harga)}"></td>
+                            <td class="text-end subtotal">${formatRupiah(item.subtotal)}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-danger btn-hapus"><i class="bi bi-x"></i></button>
+                            </td>
+                        </tr>
+                    `;
                     $('#tabelRetur tbody').append(row);
                 });
 
@@ -248,18 +252,18 @@
                 });
 
                 const row = `
-                            <tr data-kode="${kodeBarang}">
-                                <td class="text-center">${$('#tabelRetur tbody tr').length + 1}</td>
-                                <td>${kodeBarang}</td>
-                                <td>${namaBarang}</td>
-                                <td><input type="number" class="form-control form-control-sm text-end qtyRetur" value="${jumlah}" min="1" data-satuan_id="${satuanId}" data-kode="${kodeBarang}"></td>
-                                <td><input type="text" class="form-control form-control-sm text-end hargaRetur" value="${formatRupiah(harga)}"></td>
-                                <td class="text-end subtotal">${formatRupiah(subtotal)}</td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger btn-hapus"><i class="bi bi-x"></i></button>
-                                </td>
-                            </tr>
-                        `;
+                    <tr data-kode="${kodeBarang}">
+                        <td class="text-center">${$('#tabelRetur tbody tr').length + 1}</td>
+                        <td>${kodeBarang}</td>
+                        <td>${namaBarang}</td>
+                        <td class="text-center">${qty}</td>
+                        <td class="text-end">${formatRupiah(harga)}</td>
+                        <td class="text-end">${formatRupiah(subtotal)}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-danger btn-hapus"><i class="bi bi-x"></i></button>
+                        </td>
+                    </tr>
+                `;
 
 
                 $('#tabelRetur tbody').append(row);

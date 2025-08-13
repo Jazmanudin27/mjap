@@ -32,18 +32,35 @@ class MutasiBarangKeluarController extends Controller
         $tgl_dari = $request->tanggal_dari;
         $tgl_sampai = $request->tanggal_sampai;
         $wilayah = $request->wilayah;
+        $kondisi = $request->kondisi; // tambah: gs / bs
+        $jenis_pengeluaran = $request->jenis_pengeluaran; // tambah: Penjualan, Retur, dll
 
-        $data['list_wilayah'] = DB::table('wilayah')->orderBy('nama_wilayah')->pluck('nama_wilayah', 'kode_wilayah');
+        $data['list_wilayah'] = DB::table('wilayah')
+            ->orderBy('nama_wilayah')
+            ->pluck('nama_wilayah', 'kode_wilayah');
+
         $data['mutasi'] = DB::table('mutasi_barang_keluar')
             ->leftJoin('penjualan', 'mutasi_barang_keluar.no_faktur', '=', 'penjualan.no_faktur')
             ->leftJoin('pelanggan', 'penjualan.kode_pelanggan', '=', 'pelanggan.kode_pelanggan')
             ->leftJoin('wilayah', 'pelanggan.kode_wilayah', '=', 'wilayah.kode_wilayah')
-            ->when($kode_transaksi, fn($q) => $q->where('mutasi_barang_keluar.kode_transaksi', 'like', "%$kode_transaksi%"))
-            ->when($no_faktur, fn($q) => $q->where('penjualan.no_faktur', 'like', "%$no_faktur%"))
-            ->when($pelanggan, fn($q) => $q->where('penjualan.kode_pelanggan', $pelanggan))
-            ->when($tujuan, fn($q) => $q->where('mutasi_barang_keluar.tujuan', 'like', "%$tujuan%"))
-            ->when($wilayah, fn($q) => $q->where('wilayah.nama_wilayah', 'like', "%$wilayah%"))
-            ->when($tgl_dari && $tgl_sampai, fn($q) => $q->whereBetween('mutasi_barang_keluar.tanggal', [$tgl_dari, $tgl_sampai]))
+            ->when($kode_transaksi, function ($q) use ($kode_transaksi) {
+                return $q->where('mutasi_barang_keluar.kode_transaksi', 'like', "%$kode_transaksi%");
+            })
+            ->when($no_faktur, function ($q) use ($no_faktur) {
+                return $q->where('penjualan.no_faktur', 'like', "%$no_faktur%");
+            })
+            ->when($pelanggan, function ($q) use ($pelanggan) {
+                return $q->where('penjualan.kode_pelanggan', $pelanggan);
+            })
+            ->when($kondisi, function ($q) use ($kondisi) {
+                return $q->where('mutasi_barang_keluar.kondisi', $kondisi); // 'gs' atau 'bs'
+            })
+            ->when($jenis_pengeluaran, function ($q) use ($jenis_pengeluaran) {
+                return $q->where('mutasi_barang_keluar.jenis_pengeluaran', $jenis_pengeluaran);
+            })
+            ->when($tgl_dari && $tgl_sampai, function ($q) use ($tgl_dari, $tgl_sampai) {
+                return $q->whereBetween('mutasi_barang_keluar.tanggal', [$tgl_dari, $tgl_sampai]);
+            })
             ->select(
                 'mutasi_barang_keluar.*',
                 'penjualan.no_faktur',
@@ -52,8 +69,8 @@ class MutasiBarangKeluarController extends Controller
                 'wilayah.nama_wilayah'
             )
             ->orderByDesc('mutasi_barang_keluar.tanggal')
-            ->paginate(10)
-            ->appends($request->query());
+            ->paginate(20)
+            ->appends($request->query()); // Pertahankan semua parameter
 
         return view('mutasi_keluar.index', $data);
     }
@@ -96,11 +113,12 @@ class MutasiBarangKeluarController extends Controller
                     'updated_at' => now()
                 ]);
 
-            return back()->with('success', 'Barang berhasil diterima dan dicatat.');
+            return back()->with('success', 'Barang berhasil dikirim dan dicatat.');
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage());
         }
     }
+
 
     public function store(Request $request)
     {

@@ -12,6 +12,7 @@
                 <th>No</th>
                 <th>Supplier</th>
                 <th>Kode Barang</th>
+                <th>Kode Item</th>
                 <th>Nama Barang</th>
                 <th>Stok Min</th>
                 <th>Satuan</th>
@@ -34,6 +35,7 @@
                     <td class="text-center">{{ $no++ }}</td>
                     <td>{{ $item->nama_supplier }}</td>
                     <td>{{ $item->kode_barang }}</td>
+                    <td>{{ $item->kode_item }}</td>
                     <td>{{ $item->nama_barang }}</td>
                     <td class="text-end">{{ number_format($item->stok_min) }}</td>
                     <td>{{ $item->satuan }}</td>

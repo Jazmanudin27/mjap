@@ -28,26 +28,35 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="col-md-4">
+                            <select name="kirimanke" id="kirimanke" class="form-select select2">
+                                <option value="">-- Semua Kiriman --</option>
+                                <option value="1" {{ request('kirimanke') == '1' ? 'selected' : '' }}>Kiriman Ke-1
+                                </option>
+                                <option value="2" {{ request('kirimanke') == '2' ? 'selected' : '' }}>Kiriman Ke-2
+                                </option>
+                                <option value="3" {{ request('kirimanke') == '3' ? 'selected' : '' }}>Kiriman Ke-3
+                                </option>
+                            </select>
+                        </div>
                         <div class="col-md-2 d-grid">
                             <button
                                 class="btn btn-sm btn-primary w-100 d-flex align-items-center justify-content-center gap-1">
                                 <i class="bi bi-search"></i> Filter
                             </button>
                         </div>
-                        <div class="col-md-2 d-grid">
+                        {{-- <div class="col-md-2 d-grid">
                             <a class="btn btn-sm btn-success w-100 d-flex align-items-center justify-content-center gap-1"
                                 href="{{ route('cetakKirimanSales', request()->except(['_token'])) }}" target="_blank">
                                 <i class="bi bi-printer"></i> Cetak Rekap Kiriman
                             </a>
                         </div>
-
-                        <!-- Tombol Cetak Kiriman Gudang -->
                         <div class="col-md-2 d-grid">
                             <a class="btn btn-sm btn-secondary w-100 d-flex align-items-center justify-content-center gap-1"
                                 href="{{ route('cetakKirimanGudang', request()->except(['_token'])) }}" target="_blank">
                                 <i class="bi bi-box-seam"></i> Cetak Kiriman Barang
                             </a>
-                        </div>
+                        </div> --}}
                     </div>
                 </form>
 
@@ -56,46 +65,52 @@
                         <thead class="table-light text-center">
                             <tr>
                                 <th style="width: 2%;">No</th>
-                                <th style="width:13%">No Faktur</th>
-                                <th style="width:9%">Tanggal</th>
-                                <th>Pelanggan</th>
-                                <th>Sales</th>
-                                <th style="width:12%">Wilayah</th>
-                                <th style="width:9%">Total</th>
-                                <th style="width:5%">Aksi</th>
+                                <th style="width:9%">Tgl Kirim</th>
+                                <th>Wilayah</th>
+                                <th style="width:15%">Total</th>
+                                <th style="width:10%">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @php $grandTotal = 0; @endphp
-                            @forelse($data as $i => $d)
+                            @php
+                                $no = 1;
+                                $grandTotal = 0;
+                            @endphp
+                            @forelse ($data as $d)
                                 <tr>
-                                    <td class="text-center">{{ $i + 1 }}</td>
-                                    <td>{{ $d->no_faktur }}</td>
-                                    <td class="text-center">{{ $d->tanggal }}</td>
-                                    <td>{{ $d->nama_pelanggan }}</td>
-                                    <td>{{ $d->nama_sales }}</td>
+                                    <td class="text-center">{{ $no++ }}</td>
+                                    <td class="text-center">{{ tanggal_indo2($d->tanggal) }}</td>
                                     <td>{{ $d->nama_wilayah }}</td>
                                     <td class="text-end">
-                                        @php $grandTotal += $d->grand_total; @endphp
-                                        {{ number_format($d->grand_total, 0, ',', '.') }}
+                                        @php $grandTotal += $d->total; @endphp
+                                        {{ number_format($d->total, 0, ',', '.') }}
                                     </td>
                                     <td class="text-center">
-                                        <a href="#" data-href="{{ route('deleteKirimanSales', $d->id) }}"
-                                            class="btn btn-sm btn-danger btn-hapus">
+                                        <a href="#" class="btn btn-sm btn-danger  btn-hapus"
+                                            data-tanggal="{{ $d->tanggal }}" data-kode_wilayah="{{ $d->kode_wilayah }}">
                                             <i class="bi bi-trash"></i>
+                                        </a>
+                                        <a href="{{ route('cetakKirimanSales', ['tanggal' => $d->tanggal, 'kode_wilayah' => $d->kode_wilayah, 'kirimanke' => $d->kirimanke]) }}"
+                                            target="_blank" class="btn btn-sm btn-success">
+                                            <i class="bi bi-printer"></i>
+                                        </a>
+                                        <a href="{{ route('cetakKirimanGudang', ['tanggal' => $d->tanggal, 'kode_wilayah' => $d->kode_wilayah, 'kirimanke' => $d->kirimanke]) }}"
+                                            target="_blank" class="btn btn-sm btn-secondary ">
+                                            <i class="bi bi-box-seam"></i>
                                         </a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted">Tidak ada data ditemukan.</td>
+                                    <td colspan="5" class="text-center text-muted">Tidak ada data ditemukan.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                         <tfoot class="table-light fw-bold text-end">
                             <tr>
-                                <td colspan="6" class="text-end">Total</td>
+                                <td colspan="3" class="text-end">Grand Total</td>
                                 <td>{{ 'Rp' . number_format($grandTotal, 0, ',', '.') }}</td>
+                                <td></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -107,6 +122,7 @@
 
     <script>
         $(function() {
+
             $('.select2').select2({
                 width: '100%'
             });
@@ -116,12 +132,13 @@
             });
 
             $('.btn-hapus').on('click', function() {
-                let href = $(this).data('href');
+                let tanggal = $(this).data('tanggal');
+                let kodeWilayah = $(this).data('kode_wilayah');
                 let row = $(this).closest('tr');
 
                 Swal.fire({
                     title: 'Yakin ingin menghapus?',
-                    text: "Data kiriman ini akan dihapus permanen!",
+                    text: "Semua data kiriman untuk tanggal dan wilayah ini akan dihapus permanen!",
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#d33',
@@ -131,11 +148,12 @@
                 }).then((result) => {
                     if (result.isConfirmed) {
                         $.ajax({
-                            url: href,
+                            url: "{{ route('deleteGroupKirimanSales') }}",
                             type: 'POST',
                             data: {
                                 _token: '{{ csrf_token() }}',
-                                _method: 'POST'
+                                tanggal: tanggal,
+                                kode_wilayah: kodeWilayah
                             },
                             success: function() {
                                 Swal.fire('Berhasil!', 'Data berhasil dihapus.',

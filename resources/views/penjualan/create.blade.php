@@ -250,6 +250,7 @@
                 <input type="hidden" name="keranjang" id="keranjangInput">
                 <input type="hidden" name="grand_total" id="grandTotalInput">
                 <input type="hidden" name="satuan_id" id="satuan_id">
+                <input type="hidden" id="kode_supplier">
                 {{-- Pembayaran --}}
                 <div class="row g-3">
                     <div class="col-md-8"></div>
@@ -440,15 +441,26 @@
                 }
             });
 
-            $('#kode_barang').change(function() {
+
+            let saldoAkhirPCS = 0;
+
+            $('#kode_barang').on('select2:select', function(e) {
+                const data = e.params.data;
+                saldoAkhirPCS = data.saldo_akhir || 0;
+
                 const kode_barang = $(this).val();
                 $('#satuan').html('<option value="">Memuat...</option>');
 
                 $.get("{{ route('getSatuanBarang', '') }}/" + kode_barang, function(res) {
                     let html = '<option value="">Satuan</option>';
                     res.forEach(function(item) {
-                        html +=
-                            `<option value="${item.satuan}" data-harga="${item.harga_jual}" data-id="${item.id}">${item.satuan} </option>`;
+                        html += `<option value="${item.satuan}"
+                            data-harga="${item.harga_jual}"
+                            data-id="${item.id}"
+                            data-isi="${item.isi}"
+                            data-supplier="${item.kode_supplier}">
+                        ${item.satuan}
+                    </option>`;
                     });
                     $('#satuan').html(html);
                     $('#harga_jual').val('');
@@ -462,11 +474,28 @@
                 const selected = $(this).find(':selected');
                 const harga = selected.data('harga') || 0;
                 const id = selected.data('id') || 0;
+                const isi = selected.data('isi') || 1;
+                const kode_supplier = selected.data('supplier');
+
                 $('#harga_jual').val(formatRupiah(harga));
                 $('#satuan_id').val(id);
+                $('#kode_supplier').val(kode_supplier);
+
+                const maxQty = Math.floor(saldoAkhirPCS / isi);
+
+                if (maxQty <= 0) {
+                    Swal.fire('Stok habis!', 'Tidak ada stok tersedia dalam satuan ini.', 'warning');
+                    $('#jumlah').focus();
+                    // $('#jumlah').val('').attr('readonly', true);
+                } else {
+                    // $('#jumlah').attr('readonly', false).attr('max', maxQty);
+                    $('#jumlah').focus();
+                }
+
+                hitungTotal(); // Update total
             }).on('select2:close', function() {
                 $('#jumlah').focus();
-            });;
+            });
 
             function hitungTotal() {
                 const harga = parseRupiah($('#harga_jual').val());
@@ -490,49 +519,49 @@
                 $('#total').val(formatRupiah(total));
             }
 
-            function setupDiskonInputEvents() {
-                const $hargaJual = $('#harga_jual');
-                const $jumlah = $('#jumlah');
+            // function setupDiskonInputEvents() {
+            //     const $hargaJual = $('#harga_jual');
+            //     const $jumlah = $('#jumlah');
 
-                function getBasisTotal() {
-                    const harga = parseRupiah($hargaJual.val()) || 0;
-                    const qty = parseInt($jumlah.val()) || 0;
-                    return harga * qty;
-                }
+            //     function getBasisTotal() {
+            //         const harga = parseRupiah($hargaJual.val()) || 0;
+            //         const qty = parseInt($jumlah.val()) || 0;
+            //         return harga * qty;
+            //     }
 
-                function updateDiskonPair(nominalId, persenId) {
-                    const $nominal = $(nominalId);
-                    const $persen = $(persenId);
+            //     function updateDiskonPair(nominalId, persenId) {
+            //         const $nominal = $(nominalId);
+            //         const $persen = $(persenId);
 
-                    // Saat nominal diisi → hitung persen berdasarkan total
-                    $nominal.on('input', function() {
-                        const total = getBasisTotal();
-                        const nominal = parseRupiah($(this).val()) || 0;
-                        if (total > 0) {
-                            const persen = (nominal / total) * 100;
-                            $persen.val(persen.toFixed(2));
-                        } else {
-                            $persen.val('');
-                        }
-                        hitungTotal(); // Pastikan total diupdate
-                    });
+            //         // Saat nominal diisi → hitung persen berdasarkan total
+            //         $nominal.on('input', function() {
+            //             const total = getBasisTotal();
+            //             const nominal = parseRupiah($(this).val()) || 0;
+            //             if (total > 0) {
+            //                 const persen = (nominal / total) * 100;
+            //                 $persen.val(persen.toFixed(2));
+            //             } else {
+            //                 $persen.val('');
+            //             }
+            //             hitungTotal(); // Pastikan total diupdate
+            //         });
 
-                    // Saat persen diisi → hitung nominal berdasarkan total
-                    $persen.on('input', function() {
-                        const total = getBasisTotal();
-                        const persen = parseFloat($(this).val()) || 0;
-                        const nominal = (persen / 100) * total;
-                        $nominal.val(formatRupiah(nominal));
-                        hitungTotal();
-                    });
-                }
+            //         // Saat persen diisi → hitung nominal berdasarkan total
+            //         $persen.on('input', function() {
+            //             const total = getBasisTotal();
+            //             const persen = parseFloat($(this).val()) || 0;
+            //             const nominal = (persen / 100) * total;
+            //             $nominal.val(formatRupiah(nominal));
+            //             hitungTotal();
+            //         });
+            //     }
 
-                // Terapkan untuk D1 sampai D4
-                updateDiskonPair('#diskon1_nominal', '#diskon1_persen');
-                updateDiskonPair('#diskon2_nominal', '#diskon2_persen');
-                updateDiskonPair('#diskon3_nominal', '#diskon3_persen');
-                updateDiskonPair('#diskon4_nominal', '#diskon4_persen');
-            }
+            //     // Terapkan untuk D1 sampai D4
+            //     updateDiskonPair('#diskon1_nominal', '#diskon1_persen');
+            //     updateDiskonPair('#diskon2_nominal', '#diskon2_persen');
+            //     updateDiskonPair('#diskon3_nominal', '#diskon3_persen');
+            //     updateDiskonPair('#diskon4_nominal', '#diskon4_persen');
+            // }
 
             function updateTotalPenjualan() {
                 let subtotal = 0;
@@ -540,15 +569,14 @@
                 let grandTotal = 0;
 
                 keranjang.forEach(it => {
-                    const sub = it.harga_jual * it.jumlah;
-                    subtotal += sub;
+                    subtotal += it.harga_jual * it.jumlah;
                     potongan += it.total_diskon;
                     grandTotal += it.total;
                 });
 
                 $('#footerSubtotal').text(formatRupiah(subtotal));
-                $('#footerTotal').text(formatRupiah(grandTotal));
                 $('#footerPotongan').text(formatRupiah(potongan));
+                $('#footerTotal').text(formatRupiah(grandTotal));
                 $('#totalPenjualanDisplay').text(formatRupiah(grandTotal));
                 $('#grandTotalInput').val(grandTotal);
             }
@@ -559,138 +587,305 @@
                 hitungTotal();
             });
 
-            function hitungDiskonStrata(kode_barang, qty) {
-                const hargaSatuan = parseRupiah($('#harga_jual').val());
-                const totalNominal = qty * hargaSatuan;
+            function cekSyaratDiskon(diskon, qty, totalNominal) {
+                if (diskon.tipe_syarat === 'nominal') {
+                    return totalNominal >= diskon.syarat;
+                } else if (diskon.tipe_syarat === 'qty') {
+                    return qty >= diskon.syarat;
+                }
+                return false;
+            }
 
-                $.getJSON(`/getDiskonStrataSemua/${kode_barang}/${qty}/${totalNominal}`, function(response) {
-                    let diskonRegulerQty = null;
-                    let diskonRegulerNominal = null;
-                    let diskonPromo = null;
-                    let diskonCash = null;
+            function updateDiskonDariSupplier() {
+                // Hitung total nominal per supplier
+                const totalPerSupplier = {};
+                keranjang.forEach(item => {
+                    const subTotal = item.harga_jual * item.jumlah;
+                    const supplier = item.kode_supplier;
+                    if (!supplier) return;
+
+                    if (!totalPerSupplier[supplier]) {
+                        totalPerSupplier[supplier] = 0;
+                    }
+                    totalPerSupplier[supplier] += subTotal;
+                });
+
+                // Ambil diskon supplier dari API
+                $.getJSON(`/getDiskonStrataSemuaGlobal`, function(response) {
+                    const diskonSupplierD1 = {}; // reguler
+                    const diskonSupplierD2 = {}; // promo
+                    const diskonSupplierD3 = {}; // cash
+                    const jenis_transaksi = $('#jenis_transaksi').val();
 
                     response.forEach(diskon => {
-                        if (diskon.jenis_diskon === 'reguler') {
-                            if (diskon.tipe_syarat === 'qty') {
-                                if (!diskonRegulerQty || diskon.persentase > diskonRegulerQty
-                                    .persentase) {
-                                    diskonRegulerQty = diskon;
-                                }
-                            } else if (diskon.tipe_syarat === 'nominal') {
-                                if (!diskonRegulerNominal || diskon.persentase >
-                                    diskonRegulerNominal.persentase) {
-                                    diskonRegulerNominal = diskon;
-                                }
-                            }
-                        }
+                        if (!diskon.kode_barang && diskon.kode_supplier) {
+                            const supplier = diskon.kode_supplier;
+                            const total = totalPerSupplier[supplier] || 0;
+                            const qty = countQtyPerSupplier(keranjang, supplier);
 
-                        if (diskon.jenis_diskon === 'promo') {
-                            if (!diskonPromo || diskon.persentase > diskonPromo.persentase) {
-                                diskonPromo = diskon;
-                            }
-                        }
+                            // Cek syarat dulu untuk semua jenis diskon
+                            if (!cekSyaratDiskon(diskon, qty, total)) return;
 
-                        if (diskon.cash != 0) {
-                            if (!diskonCash || diskon.cash > diskonCash.cash) {
-                                diskonCash = diskon;
+                            if (diskon.jenis_diskon === 'd1') {
+                                if (!diskonSupplierD1[supplier] || diskon.persentase >
+                                    diskonSupplierD1[supplier].persentase) {
+                                    diskonSupplierD1[supplier] = diskon;
+                                }
+                            } else if (diskon.jenis_diskon === 'd2') {
+                                if (diskon.cash == 1 && jenis_transaksi !== 'T') return;
+                                if (!diskonSupplierD2[supplier] || diskon.persentase >
+                                    diskonSupplierD2[supplier].persentase) {
+                                    diskonSupplierD2[supplier] = diskon;
+                                }
+                            } else if (diskon.jenis_diskon === 'd3') {
+                                if (diskon.cash == 1 && jenis_transaksi !== 'T') return;
+                                if (!diskonSupplierD3[supplier] || diskon.persentase >
+                                    diskonSupplierD3[supplier].persentase) {
+                                    diskonSupplierD3[supplier] = diskon;
+                                }
                             }
                         }
                     });
 
-                    // --- Pilih reguler terbaik (qty vs nominal)
-                    const diskonReguler = pilihDiskonTerbaik(diskonRegulerQty, diskonRegulerNominal);
-                    if (diskonReguler) {
-                        const persen = parseFloat(diskonReguler.persentase) || 0;
-                        const nominal = (persen / 100) * totalNominal;
-                        $('#diskon1_persen').val(persen);
-                        $('#diskon1_nominal').val(formatRupiah(nominal));
-                    } else {
-                        $('#diskon1_persen').val(0);
-                        $('#diskon1_nominal').val(formatRupiah(0));
-                    }
+                    // Terapkan diskon supplier ke keranjang
+                    keranjang.forEach((item) => {
+                        const supplier = item.kode_supplier;
+                        if (!supplier) return;
 
-                    // --- Promo (D2)
-                    if (diskonPromo) {
-                        const persen = parseFloat(diskonPromo.persentase) || 0;
-                        const nominal = (persen / 100) * totalNominal;
-                        $('#diskon1_persen').val(persen);
-                        $('#diskon1_nominal').val(formatRupiah(nominal));
-                    } else {
-                        $('#diskon1_persen').val(0);
-                        $('#diskon1_nominal').val(formatRupiah(0));
-                    }
+                        const jumlahBarangSupplier = countBarangPerSupplier(keranjang, supplier);
 
-                    if (diskonCash) {
-                        const persen = parseFloat(diskonCash.cash) || 0;
-                        let nominal = (persen / 100) * totalNominal;
-
-                        const jenisTransaksi = $('#jenis_transaksi').val();
-                        if (jenisTransaksi !== 'T') {
-                            persen = 0;
-                            nominal = 0;
+                        // D1
+                        if (diskonSupplierD1[supplier]) {
+                            const diskonTotal = parseFloat(diskonSupplierD1[supplier].persentase);
+                            item.diskon1_persen = parseFloat((diskonTotal / jumlahBarangSupplier)
+                                .toFixed(4));
+                            item.asal_diskon1 = 'supplier';
                         }
 
-                        $('#diskon2_persen').val(persen);
-                        $('#diskon2_nominal').val(formatRupiah(nominal));
-                    } else {
-                        $('#diskon2_persen').val(0);
-                        $('#diskon2_nominal').val(formatRupiah(0));
-                    }
+                        // D2
+                        if (diskonSupplierD2[supplier]) {
+                            const diskonTotal = parseFloat(diskonSupplierD2[supplier].persentase);
+                            item.diskon2_persen = parseFloat((diskonTotal / jumlahBarangSupplier)
+                                .toFixed(4));
+                            item.asal_diskon2 = 'supplier';
+                        }
 
-                    hitungTotal();
+                        // D3
+                        if (diskonSupplierD3[supplier]) {
+                            const diskonTotal = parseFloat(diskonSupplierD3[supplier].persentase);
+                            item.diskon3_persen = parseFloat((diskonTotal / jumlahBarangSupplier)
+                                .toFixed(4));
+                            item.asal_diskon3 = 'supplier';
+                        }
+
+                        // Hitung ulang total
+                        const subtotal = item.harga_jual * item.jumlah;
+                        const d1 = subtotal * (item.diskon1_persen / 100);
+                        const d2 = (subtotal - d1) * (item.diskon2_persen / 100);
+                        const d3 = (subtotal - d1 - d2) * (item.diskon3_persen / 100);
+                        const d4 = (subtotal - d1 - d2 - d3) * (item.diskon4_persen / 100);
+
+                        item.total_diskon = d1 + d2 + d3 + d4;
+                        item.total = subtotal - item.total_diskon;
+                    });
+
+                    renderKeranjang();
+                    updateTotalPenjualan();
+                }).fail(() => {
+                    console.error('Gagal memuat diskon supplier');
                 });
             }
 
-            $('#jumlah, #jenis_transaksi').on('input change', function() {
-                const qty = parseInt($('#jumlah').val()) || 0;
-                const kode_barang = $('#kode_barang').val();
+            function hitungDiskonStrata(kode_barang, qty) {
+                return new Promise((resolve, reject) => {
+                    const hargaSatuan = parseRupiah($('#harga_jual').val());
+                    const totalNominal = qty * hargaSatuan;
 
+                    $.getJSON(`/getDiskonStrataSemua/${kode_barang}/${qty}/${totalNominal}`, function(
+                        response) {
+                        let d1 = null,
+                            d2 = null,
+                            d3 = null;
+
+                        response.forEach(diskon => {
+                            if (diskon.jenis_diskon === 'd1') {
+                                if (cekSyaratDiskon(diskon, qty, totalNominal)) {
+                                    if (!d1 || diskon.persentase > d1.persentase) {
+                                        d1 = diskon;
+                                    }
+                                }
+                            }
+                            if (diskon.jenis_diskon === 'd2') {
+                                if (diskon.cash == 1 && $('#jenis_transaksi').val() !== 'T')
+                                    return;
+                                if (cekSyaratDiskon(diskon, qty, totalNominal)) {
+                                    if (!d2 || diskon.persentase > d2.persentase) {
+                                        d2 = diskon;
+                                    }
+                                }
+                            }
+                            if (diskon.jenis_diskon === 'd3') {
+                                if (diskon.cash == 1 && $('#jenis_transaksi').val() !== 'T')
+                                    return;
+                                if (cekSyaratDiskon(diskon, qty, totalNominal)) {
+                                    if (!d3 || diskon.persentase > d3.persentase) {
+                                        d3 = diskon;
+                                    }
+                                }
+                            }
+                        });
+
+                        const jenisTransaksi = $('#jenis_transaksi').val();
+
+                        const d1_persen = d1 ? parseFloat(d1.persentase) : 0;
+                        const d2_persen = d2 ? parseFloat(d2.persentase) : 0;
+                        const d3_persen = (d3 && (jenisTransaksi === 'T')) ? parseFloat(d3
+                            .persentase) : 0;
+
+                        $('#diskon1_persen').val(d1_persen);
+                        $('#diskon2_persen').val(d2_persen);
+                        $('#diskon3_persen').val(d3_persen);
+
+                        $('#diskon1_nominal').val(formatRupiah((d1_persen / 100) * totalNominal));
+                        $('#diskon2_nominal').val(formatRupiah((d2_persen / 100) * totalNominal));
+                        $('#diskon3_nominal').val(formatRupiah((d3_persen / 100) * totalNominal));
+
+                        hitungTotal();
+                        resolve(d1_persen);
+                    }).fail(() => {
+                        $('#diskon1_persen').val(0);
+                        $('#diskon2_persen').val(0);
+                        $('#diskon3_persen').val(0);
+                        $('#diskon1_nominal').val(formatRupiah(0));
+                        $('#diskon2_nominal').val(formatRupiah(0));
+                        $('#diskon3_nominal').val(formatRupiah(0));
+                        hitungTotal();
+                        resolve(0);
+                    });
+                });
+            }
+
+            function countBarangPerSupplier(keranjang, supplier) {
+                return keranjang.filter(item => item.kode_supplier === supplier).length;
+            }
+
+            function countQtyPerSupplier(keranjang, supplier) {
+                return keranjang
+                    .filter(item => item.kode_supplier === supplier)
+                    .reduce((sum, item) => sum + (item.jumlah * item.isi), 0);
+            }
+
+            // Fungsi bantu: pilih diskon terbaik berdasarkan persentase
+            // function pilihDiskonTerbaik(...diskonList) {
+            //     let best = null;
+            //     for (const d of diskonList) {
+            //         if (d && (!best || d.persentase > best.persentase)) {
+            //             best = d;
+            //         }
+            //     }
+            //     return best;
+            // }
+
+            function pilihDiskonTerbaik(d1, d2) {
+                const p1 = parseFloat(d1?.persentase) || 0;
+                const p2 = parseFloat(d2?.persentase) || 0;
+
+                if (p1 >= p2 && d1) return d1;
+                if (p2 > p1 && d2) return d2;
+                return null;
+            }
+
+            function konversiKeSatuanBesar(totalPCS, konversiSatuan) {
+                let sisaPCS = totalPCS;
+                const hasil = {};
+
+                for (const [satuan, isi] of Object.entries(konversiSatuan)) {
+                    hasil[satuan] = Math.floor(sisaPCS / isi);
+                    sisaPCS = sisaPCS % isi;
+                }
+
+                return hasil;
+            }
+
+            $('#jumlah, #jenis_transaksi').on('input change', function() {
+                const kode_barang = $('#kode_barang').val();
+                const qty = parseInt($(this).val()) || 0;
+                const satuan = $('#satuan').find(':selected');
+                const isi = satuan.data('isi') || 1;
+                const inputElement = this; // simpan referensi input
+
+                // if (qty <= 0) return;
+                //     const totalPcs = qty * isi;
+
+                //             if (totalPcs > saldoAkhirPCS) {
+                //                 $.get(`/getKonversiSatuan/${kode_barang}`, function(konversiSatuan) {
+                //                     const stokKonversi = konversiKeSatuanBesar(saldoAkhirPCS, konversiSatuan);
+
+                //                     Swal.fire({
+                //                         title: '<h5>🚫 Stok Tidak Cukup!</h5>',
+                //                         icon: 'warning',
+                //                         html: `
+            //                 <div style="font-size: 14px; text-align: left; margin-bottom: 10px;">
+            //                     <p><strong>Stok Tersedia:</strong></p>
+            //                     <div style="display: grid; grid-template-columns: auto auto; gap: 5px 10px;">
+            //                         ${Object.entries(stokKonversi).map(([satuanName, jumlah]) => {
+            //                             return jumlah > 0
+            //                                 ? `<div>${satuanName}</div><div>: ${jumlah}</div>`
+            //                                 : '';
+            //                         }).join('')}
+            //                     </div>
+            //                     <hr style="margin: 10px 0;">
+            //                     <p><strong>Maksimal Stok:</strong>
+            //                         <span style="color: red; font-weight: bold;">${Math.floor(saldoAkhirPCS / isi)} ${satuan.val()}</span>
+            //                     </p>
+            //                 </div>
+            //             `,
+                //             confirmButtonText: 'Saya Mengerti',
+                //             customClass: {
+                //                 popup: 'animated tada'
+                //             }
+                //         });
+
+                //         // Hapus baris ini supaya tidak memotong input:
+                //         // $(inputElement).val(maxQty || '');
+                //     });
+                // }
+
+                hitungTotal();
                 hitungDiskonStrata(kode_barang, qty);
             });
 
+
             let keranjang = JSON.parse(localStorage.getItem('keranjangPenjualan') || '[]');
 
-            function simpanKeKeranjang() {
+            async function simpanKeKeranjang() {
                 const kode_barang = $('#kode_barang').val();
                 const nama_barang = $('#kode_barang').find(':selected').text();
                 const satuan = $('#satuan').val();
                 const satuan_id = $('#satuan_id').val();
                 const harga_jual = parseRupiah($('#harga_jual').val());
                 const jumlah = parseInt($('#jumlah').val()) || 0;
-
-                const diskon1_persen = parseFloat($('#diskon1_persen').val()) || 0;
-                const diskon2_persen = parseFloat($('#diskon2_persen').val()) || 0;
-                const diskon3_persen = parseFloat($('#diskon3_persen').val()) || 0;
-                const diskon4_persen = parseFloat($('#diskon4_persen').val()) || 0;
-
-                let subtotal = harga_jual * jumlah;
-
-                let diskon1 = subtotal * (diskon1_persen / 100);
-                let diskon2 = (subtotal - diskon1) * (diskon2_persen / 100);
-                let diskon3 = (subtotal - diskon1 - diskon2) * (diskon3_persen / 100);
-                let diskon4 = (subtotal - diskon1 - diskon2 - diskon3) * (diskon4_persen / 100);
-
-                let total_diskon = diskon1 + diskon2 + diskon3 + diskon4;
-                let total = subtotal - total_diskon;
+                const isi = $('#satuan').find(':selected').data('isi') || 1;
 
                 if (!kode_barang || !satuan || jumlah <= 0) {
                     Swal.fire('Lengkapi data barang!', '', 'warning');
                     return;
                 }
 
-                const duplikat = keranjang.find(
-                    it => it.kode_barang === kode_barang && it.satuan === satuan && !it.is_promo
-                );
+                // Hitung diskon dari strata barang
+                const diskon1_persen = await hitungDiskonStrata(kode_barang, jumlah);
+                const diskon2_persen = parseFloat($('#diskon2_persen').val()) || 0;
+                const diskon3_persen = parseFloat($('#diskon3_persen').val()) || 0;
+                const diskon4_persen = parseFloat($('#diskon4_persen').val()) || 0;
 
-                if (duplikat) {
-                    Swal.fire({
-                        title: 'Barang sudah ada di keranjang!',
-                        text: 'Edit kuantitas di tabel jika ingin mengubah nilai.',
-                        icon: 'info',
-                        confirmButtonText: 'OK'
-                    });
-                    return;
-                }
+                const subtotal = harga_jual * jumlah;
+                const d1 = subtotal * (diskon1_persen / 100);
+                const d2 = (subtotal - d1) * (diskon2_persen / 100);
+                const d3 = (subtotal - d1 - d2) * (diskon3_persen / 100);
+                const d4 = (subtotal - d1 - d2 - d3) * (diskon4_persen / 100);
+
+                const total_diskon = d1 + d2 + d3 + d4;
+                const total = subtotal - total_diskon;
 
                 keranjang.push({
                     kode_barang,
@@ -700,6 +895,7 @@
                     harga_jual,
                     harga_asli: harga_jual,
                     jumlah,
+                    isi,
                     subtotal,
                     diskon1_persen,
                     diskon2_persen,
@@ -707,13 +903,24 @@
                     diskon4_persen,
                     total_diskon,
                     total,
-                    is_promo: false
+                    is_promo: false,
+                    kode_supplier: $('#kode_supplier').val(),
+
+                    // 🔽 TANDAI ASAL DISKON
+                    asal_diskon1: 'strata',
+                    asal_diskon2: 'strata',
+                    asal_diskon3: 'strata', // karena diisi oleh hitungDiskonStrata()
+                    asal_diskon4: 'manual'
                 });
 
                 renderKeranjang();
                 saveState();
                 updateTotalPenjualan();
 
+                // Update diskon per supplier (akan atur ulang hanya jika dari supplier)
+                updateDiskonDariSupplier();
+
+                // Reset form
                 $('#kode_barang').val(null).trigger('change');
                 $('#satuan').html('<option value="">Satuan</option>');
                 $('#harga_jual, #jumlah, #total').val('');
@@ -732,51 +939,33 @@
                     const rowClass = item.is_promo ? 'table-warning' : '';
 
                     tbody.append(`
-                        <tr class="${rowClass}" data-index="${i}">
+                        <tr class="${rowClass}" data-index="${i}" data-supplier="${item.kode_supplier}">
                             <td class="text-center">${i + 1}</td>
                             <td class="text-start">${item.kode_barang}</td>
                             <td>${item.nama_barang}</td>
                             <td class="text-center">${item.satuan}</td>
                             <td class="text-end">${formatRupiah(item.harga_jual)}</td>
-
                             <td class="text-end">
-                                <input type="text"
-                                        class="form-control form-control-sm text-center input-jumlah"
-                                        data-index="${i}" value="${item.jumlah}">
-                            </td>
-
-                            <!-- D2-D4 = input agar bisa diedit -->
-                            <td class="text-center">
-                                <input type="text"
-                                        class="form-control form-control-sm text-center input-diskon"
-                                        data-type="1" data-index="${i}"
-                                        value="${item.diskon1_persen || ''}">
-                            </td>
-
-                            <!-- D2-D4 = input agar bisa diedit -->
-                            <td class="text-center">
-                                <input type="text"
-                                        class="form-control form-control-sm text-center input-diskon"
-                                        data-type="2" data-index="${i}"
-                                        value="${item.diskon2_persen || ''}">
+                                <input type="text" class="form-control form-control-sm text-center input-jumlah" data-index="${i}" value="${item.jumlah}">
                             </td>
                             <td class="text-center">
-                                <input type="text"
-                                        class="form-control form-control-sm text-center input-diskon"
-                                        data-type="3" data-index="${i}"
-                                        value="${item.diskon3_persen || ''}">
+                                <input type="text" class="form-control form-control-sm text-center input-diskon" data-type="1" data-index="${i}" value="${item.diskon1_persen || ''}">
                             </td>
                             <td class="text-center">
-                                <input type="text"
-                                        class="form-control form-control-sm text-center input-diskon"
-                                        data-type="4" data-index="${i}"
-                                        value="${item.diskon4_persen || ''}">
+                                <input type="text" class="form-control form-control-sm text-center input-diskon" data-type="2" data-index="${i}" value="${item.diskon2_persen || ''}">
                             </td>
                             <td class="text-center">
-                                <input type="checkbox" class="form-check-input input-promo"
-                                        data-index="${i}" ${isChecked}>
+                                <input type="text" class="form-control form-control-sm text-center input-diskon" data-type="3" data-index="${i}" value="${item.diskon3_persen || ''}">
+                            </td>
+                            <td class="text-center">
+                                <input type="text" class="form-control form-control-sm text-center input-diskon" data-type="4" data-index="${i}" value="${item.diskon4_persen || ''}">
+                            </td>
+                            <td class="text-center">
+                                <input type="checkbox" class="form-check-input input-promo" data-index="${i}" ${isChecked}>
                             </td>
                             <td class="text-end">${formatRupiah(item.total)}</td>
+                            <!-- Tambahkan kolom tersembunyi untuk supplier -->
+                            <td class="supplier d-none">${item.kode_supplier}</td>
                         </tr>
                     `);
                 });
@@ -791,29 +980,36 @@
 
                 it.subtotal = it.harga_asli * it.jumlah;
 
-                // Ambil ulang diskon strata jika skipFetchStrata = false
+                // Update D1 dari strata jika belum skip
                 if (!skipFetchStrata) {
-                    const persenD1 = await fetchDiskonStrata(it.kode_barang, it.jumlah, it.subtotal);
+                    const persenD1 = await hitungDiskonStrata(it.kode_barang, it.jumlah);
                     it.diskon1_persen = persenD1;
                 }
 
-                // Hitung diskon D2-D4
-                const d1 = it.subtotal * it.diskon1_persen / 100;
-                const d2 = (it.subtotal - d1) * it.diskon2_persen / 100;
-                const d3 = (it.subtotal - d1 - d2) * it.diskon3_persen / 100;
-                const d4 = (it.subtotal - d1 - d2 - d3) * it.diskon4_persen / 100;
+                // Gunakan diskon dari item, bukan dari input form
+                let d1 = it.subtotal * (it.diskon1_persen / 100);
+                let d2 = (it.subtotal - d1) * (it.diskon2_persen / 100);
+
+                // Untuk D3: hanya aktif jika tunai
+                const jenisTransaksi = $('#jenis_transaksi').val();
+                let d3_persen = (jenisTransaksi === 'T') ? it.diskon3_persen : 0;
+                let d3 = (it.subtotal - d1 - d2) * (d3_persen / 100);
+
+                let d4 = (it.subtotal - d1 - d2 - d3) * (it.diskon4_persen / 100);
+
                 it.total_diskon = d1 + d2 + d3 + d4;
                 it.total = it.subtotal - it.total_diskon;
 
-                // 🔁 Update tampilan di tabel
+                // Update tampilan
                 const $row = $('#keranjangTable tbody tr').eq(i);
-                $row.find('[data-type="1"]').val(it.diskon1_persen); // ← Update D1
-                $row.find('td:eq(11)').text(formatRupiah(it.total)); // Update total
+                $row.find('[data-type="1"]').val(it.diskon1_persen);
+                $row.find('[data-type="2"]').val(it.diskon2_persen);
+                $row.find('[data-type="3"]').val(d3_persen);
+                $row.find('td:eq(11)').text(formatRupiah(it.total));
 
                 saveState();
                 updateTotalPenjualan();
             }
-
 
             $('#keranjangTable tbody').on('input', '.input-diskon', function() {
                 const i = $(this).data('index');
@@ -833,20 +1029,18 @@
             $('#keranjangTable tbody').on('change', '.input-promo', function() {
                 const i = $(this).data('index');
                 const isPromo = $(this).is(':checked');
-
                 keranjang[i].is_promo = isPromo;
 
                 if (isPromo) {
                     if (keranjang[i].harga_asli === undefined) {
                         keranjang[i].harga_asli = keranjang[i].harga_jual;
                     }
-
                     keranjang[i].harga_jual = 0;
                     keranjang[i].subtotal = 0;
                     keranjang[i].total_diskon = 0;
                     keranjang[i].total = 0;
                 } else {
-                    const harga = keranjang[i].harga_asli ?? keranjang[i].harga_jual;
+                    const harga = keranjang[i].harga_asli;
                     const jumlah = keranjang[i].jumlah;
                     const d1 = parseFloat(keranjang[i].diskon1_persen) || 0;
                     const d2 = parseFloat(keranjang[i].diskon2_persen) || 0;
@@ -854,12 +1048,10 @@
                     const d4 = parseFloat(keranjang[i].diskon4_persen) || 0;
 
                     const subtotal = harga * jumlah;
-
                     const diskon1 = subtotal * (d1 / 100);
                     const diskon2 = (subtotal - diskon1) * (d2 / 100);
                     const diskon3 = (subtotal - diskon1 - diskon2) * (d3 / 100);
                     const diskon4 = (subtotal - diskon1 - diskon2 - diskon3) * (d4 / 100);
-
                     const total_diskon = diskon1 + diskon2 + diskon3 + diskon4;
                     const total = subtotal - total_diskon;
 
@@ -870,7 +1062,7 @@
                 }
 
                 saveState();
-                renderKeranjang();
+                renderKeranjang(); // ← Hanya render ulang tampilan, jangan reset form!
             });
 
             $('#keranjangTable tbody').on('input', '.input-jumlah', function() {
@@ -949,7 +1141,7 @@
             });
 
 
-            setupDiskonInputEvents();
+            // setupDiskonInputEvents();
 
             function clearKeranjang() {
                 keranjang = [];
@@ -987,35 +1179,82 @@
                 });
             });
 
-            $('#jenis_transaksi').change(function() {
-                const jenis = $(this).val();
-                const sisaLimit = parseRupiah($('#sisa_limit').val());
-                const faktur_kredit = $('#faktur_kredit').val();
-                const max_faktur = $('#max_faktur').val();
-                const grandTotal = keranjang.reduce((t, item) => t + (parseFloat(item.total) || 0), 0);
+            function updateDiskonForAllItems() {
+                keranjang.forEach(async (item) => {
+                    await hitungDiskonStrata(item.kode_barang, item.jumlah);
+                    item.diskon1_persen = parseFloat($('#diskon1_persen').val()) || 0;
+                    item.diskon2_persen = parseFloat($('#diskon2_persen').val()) || 0;
+                    item.diskon3_persen = parseFloat($('#diskon3_persen').val()) || 0;
+                });
 
-                if (jenis === 'K' && grandTotal > sisaLimit) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Limit Kredit Terlampaui!',
-                        text: `Total penjualan (${formatRupiah(grandTotal)}) melebihi sisa limit (Rp ${formatRupiah(sisaLimit)}).`,
-                        confirmButtonText: 'Mengerti',
-                        confirmButtonColor: '#d33',
-                    });
-                    $(this).val('');
-                } else {
-                    if (jenis === 'K' && faktur_kredit >= max_faktur) {
+                // Tunggu sebentar agar semua async selesai
+                setTimeout(() => {
+                    updateDiskonDariSupplier();
+                }, 200);
+            }
+
+            $('#jenis_transaksi').change(function() {
+                let val = $(this).val();
+                updateDiskonForAllItems();
+
+                let fakturBelumLunas = parseInt($('#faktur_kredit').val()) || 0;
+                let maxFaktur = parseInt($('#max_faktur').val()) || 0;
+
+                let limitRaw = $('#limit_pelanggan').val() || '0';
+                let limitClean = limitRaw.replace(/[^0-9]/g, '');
+                let limitKredit = parseInt(limitClean, 10) || 0;
+
+                let totalText = $('#footerTotal').text();
+                let totalClean = totalText.replace(/[^\d]/g, '');
+                let totalTransaksi = parseFloat(totalClean) || 0;
+                console.log({
+                    jenis_transaksi: val,
+                    fakturBelumLunas,
+                    maxFaktur,
+                    limitKredit,
+                    totalTransaksi
+                });
+
+                if (val === 'K') {
+                    // Cek apakah total transaksi melebihi limit kredit
+                    if (totalTransaksi > limitKredit) {
                         Swal.fire({
                             icon: 'warning',
-                            title: 'Peringatan!',
-                            text: 'Pelanggan ini masih memiliki tagihan belum lunas melebihi batas maksimal!',
-                            confirmButtonText: 'Mengerti',
+                            title: 'Limit Kredit Terlampaui!',
+                            html: `Total transaksi Rp ${totalTransaksi.toLocaleString()} melebihi limit kredit Rp ${limitKredit.toLocaleString()}.<br>Harap gunakan pembayaran tunai.`,
                             confirmButtonColor: '#d33',
+                            confirmButtonText: 'Mengerti'
+                        }).then(() => {
+                            resetPembayaran();
                         });
-                        $(this).val('');
+                        return;
                     }
+
+                    // Peringatan jika faktur belum lunas melebihi batas, tapi tidak memblokir
+                    if (fakturBelumLunas >= maxFaktur) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Faktur Belum Lunas Melebihi Batas!',
+                            html: `Jumlah faktur belum lunas (${fakturBelumLunas}) melebihi batas maksimum (${maxFaktur}).<br>Namun limit kredit masih mencukupi sehingga transaksi diperbolehkan.`,
+                            confirmButtonColor: '#3085d6',
+                            confirmButtonText: 'Lanjutkan'
+                        });
+                        // Tidak ada return, lanjut ke pengecekan supplier
+                    }
+
+                }
+
+                // Tampilkan/Sembunyikan opsi pembayaran sesuai jenis transaksi
+                if (val === 'T') {
+                    $('#div_jenis_bayar').removeClass('d-none');
+                } else {
+                    $('#div_jenis_bayar').addClass('d-none');
+                    $('#div_bank_pengirim').addClass('d-none');
+                    $('#jenis_bayar').val('');
+                    $('#bank_pengirim').val('');
                 }
             });
+
 
             const savedNik = localStorage.getItem('selectedNik');
             if (savedNik) {

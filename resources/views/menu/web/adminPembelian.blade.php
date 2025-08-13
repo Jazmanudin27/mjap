@@ -26,6 +26,8 @@
             </li>
             <li><a href="{{ url('viewBarang') }}"><i class="bi bi-box-seam"></i><span>Barang</span></a>
             </li>
+            <li><a href="{{ url('hargaBarang') }}"><i class="bi bi-people"></i><span>Harga Barang</span></a>
+            </li>
             <li><a href="{{ url('viewSupplier') }}"><i class="bi bi-truck"></i><span>Supplier</span></a>
             </li>
             <li><a href="{{ url('viewPelanggan') }}"><i class="bi bi-people"></i><span>Pelanggan</span></a>

@@ -161,24 +161,26 @@
                         <td style="{{ $promoStyle }}">{{ $item->nama_barang }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->kategori }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->merk }}</td>
-                        <td class="text-end num-format" style="{{ $promoStyle }} mso-number-format:'0';">
-                            {{ formatAngkaDesimal($item->qty) }}
+
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->qty > 0 ? number_format($item->qty, 2, ',', '') : '' }}
                         </td>
                         <td style="{{ $promoStyle }}">{{ $item->satuan }}</td>
                         <td class="text-end num-format" style="{{ $promoStyle }} mso-number-format:'#,##0';">
                             {{ formatAngka($item->harga) }}
                         </td>
-                        <td class="text-center num-format" style="{{ $promoStyle }} mso-number-format:'0.00';">
-                            {{ formatAngkaDesimal($item->diskon1_persen) }}
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon1_persen > 0 ? number_format($item->diskon1_persen, 2, ',', '') : '' }}
                         </td>
-                        <td class="text-center num-format" style="{{ $promoStyle }} mso-number-format:'0.00';">
-                            {{ formatAngkaDesimal($item->diskon2_persen) }}
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon2_persen > 0 ? number_format($item->diskon2_persen, 2, ',', '') : '' }}
                         </td>
-                        <td class="text-center num-format" style="{{ $promoStyle }} mso-number-format:'0.00';">
-                            {{ formatAngkaDesimal($item->diskon3_persen) }}
+                        <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon3_persen > 0 ? number_format($item->diskon3_persen, 2, ',', '') : '' }}
                         </td>
-                        {{-- <td class="text-center num-format" style="{{ $promoStyle }} mso-number-format:'0.00';">
-                            {{ formatAngkaDesimal($item->diskon4_persen) }} --}}
+                        {{-- <td class="text-center" style="{{ $promoStyle }}">
+                            {{ $item->diskon4_persen > 0 ? number_format($item->diskon4_persen, 2, ',', '') : '' }}
+                        </td> --}}
                         </td>
                         <td class="text-end num-format" style="{{ $promoStyle }} mso-number-format:'#,##0';">
                             {{ formatAngka($item->total) }}

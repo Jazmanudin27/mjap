@@ -67,7 +67,7 @@ class SupplierController extends Controller
             'kode_supplier' => $kodeSupplier,
             'nama_supplier' => $request->nama_supplier,
             'alamat'        => $request->alamat,
-            'telepon'       => $request->telepon,
+            'no_hp'         => $request->no_hp ?? 0,
             'email'         => $request->email,
             'status'        => $request->status,
             'created_at'    => now(),
@@ -110,7 +110,7 @@ class SupplierController extends Controller
         $update = DB::table('supplier')->where('kode_supplier', $request->kode_supplier)->update([
             'nama_supplier' => $request->nama_supplier,
             'alamat'        => $request->alamat,
-            'telepon'       => $request->telepon,
+            'no_hp'       => $request->no_hp ?? 0,
             'email'         => $request->email,
             'status'        => $request->status,
             'updated_at'    => now(),

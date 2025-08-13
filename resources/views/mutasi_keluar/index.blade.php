@@ -21,37 +21,61 @@
                         {{-- Form Filter --}}
                         <form method="GET" action="{{ route('viewMutasiBarangKeluar') }}" class="mb-4">
                             <div class="row g-2">
-                                <div class="col-md-6">
-                                    <input type="date" class="form-control form-control-sm" placeholder="Tanggal Dari"
-                                        value="{{ request('tanggal_dari') }}" autocomplete="off">
+                                <!-- Tanggal Dari & Sampai -->
+                                <div class="col-md-3">
+                                    <input type="date" name="tanggal_dari" class="form-control form-control-sm"
+                                        value="{{ request('tanggal_dari') }}" placeholder="Tanggal Dari">
                                 </div>
-                                <div class="col-md-6">
-                                    <input type="date" class="form-control form-control-sm" placeholder="Tanggal Sampai"
-                                        value="{{ request('tanggal_sampai') }}" autocomplete="off">
+                                <div class="col-md-3">
+                                    <input type="date" name="tanggal_sampai" class="form-control form-control-sm"
+                                        value="{{ request('tanggal_sampai') }}" placeholder="Tanggal Sampai">
                                 </div>
-                                <div class="col-md-6">
-                                    <select name="kode_pelanggan" id="kode_pelanggan" class="form-select form-select-sm">
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
+
+                                <!-- Kode Transaksi & No Faktur -->
+                                <div class="col-md-3">
                                     <input type="text" name="kode_transaksi" class="form-control form-control-sm"
                                         placeholder="Kode Transaksi" value="{{ request('kode_transaksi') }}">
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <input type="text" name="no_faktur" class="form-control form-control-sm"
                                         placeholder="No Faktur" value="{{ request('no_faktur') }}">
                                 </div>
-                                <div class="col-md-2">
-                                    <input type="text" name="tujuan" class="form-control form-control-sm"
-                                        placeholder="Tujuan" value="{{ request('tujuan') }}">
+
+                                <div class="col-md-3">
+                                    <select name="kondisi" class="form-select form-select-sm">
+                                        <option value="">-- Pilih Kondisi --</option>
+                                        <option value="gs" {{ request('kondisi') == 'gs' ? 'selected' : '' }}>Good Stok
+                                        </option>
+                                        <option value="bs" {{ request('kondisi') == 'bs' ? 'selected' : '' }}>Bad Stok
+                                        </option>
+                                    </select>
                                 </div>
-                                <div class="col-md-12 d-grid">
+
+                                <!-- Jenis Pengeluaran -->
+                                <div class="col-md-3">
+                                    <select name="jenis_pengeluaran" class="form-select form-select-sm">
+                                        <option value="">-- Pilih Jenis Barang Keluar --</option>
+                                        <option value="Penjualan"
+                                            {{ request('jenis_pengeluaran') == 'Penjualan' ? 'selected' : '' }}>Penjualan
+                                        </option>
+                                        <option value="Retur"
+                                            {{ request('jenis_pengeluaran') == 'Retur' ? 'selected' : '' }}>Retur</option>
+                                        <option value="Penyesuaian"
+                                            {{ request('jenis_pengeluaran') == 'Penyesuaian' ? 'selected' : '' }}>
+                                            Penyesuaian</option>
+                                        <option value="Lainnya"
+                                            {{ request('jenis_pengeluaran') == 'Lainnya' ? 'selected' : '' }}>Lainnya
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 d-grid">
                                     <button type="submit" class="btn btn-primary btn-sm">
                                         <i class="bi bi-filter-circle"></i> Filter
                                     </button>
                                 </div>
                             </div>
                         </form>
+
 
                         {{-- Tabel Data --}}
                         <div class="table-responsive">
@@ -63,10 +87,9 @@
                                         <th style="width: 10%">Kode Transaksi</th>
                                         <th style="width: 13%">No Faktur</th>
                                         <th>Pelanggan</th>
-                                        <th style="width: 12%">Tujuan</th>
                                         <th style="width: 12%">Jenis Pengeluaran</th>
                                         <th style="width: 10%">Status</th>
-                                        <th style="width: 9%">Tgl Dikirim</th>
+                                        <th style="width: 11%">Tgl Dikirim</th>
                                         <th style="width: 10%" class="text-nowrap">Aksi</th>
                                     </tr>
                                 </thead>
@@ -78,7 +101,6 @@
                                             <td>{{ $m->kode_transaksi }}</td>
                                             <td>{{ $m->no_faktur ?? '-' }}</td>
                                             <td>{{ $m->nama_pelanggan ?? '-' }}</td>
-                                            <td>{{ $m->tujuan }}</td>
                                             <td>{{ $m->jenis_pengeluaran }}</td>
                                             <td class="text-center">
                                                 <a href="#"
@@ -95,8 +117,8 @@
                                                 @endif
                                             </td>
                                             <td class="text-center">
-                                                <a href="{{ route('detailMutasiBarangKeluar', $m->kode_transaksi) }}"
-                                                    class="btn btn-sm btn-success" title="Detail">
+                                                <a href="javascript:void(0);" class="btn btn-sm btn-success btn-detail"
+                                                    data-id="{{ $m->kode_transaksi }}" title="Detail">
                                                     <i class="fa fa-list"></i>
                                                 </a>
                                                 <a href="{{ route('editMutasiBarangKeluar', $m->kode_transaksi) }}"
@@ -112,7 +134,8 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="9" class="text-center text-muted">Tidak ada data barang keluar.
+                                            <td colspan="9" class="text-center text-muted">Tidak ada data barang
+                                                keluar.
                                             </td>
                                         </tr>
                                     @endforelse
@@ -129,6 +152,20 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="modalDetail" tabindex="-1" aria-labelledby="modalDetailLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalDetailLabel">Detail Mutasi Barang Keluar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body" id="modalDetailContent">
+                    <p class="text-center text-muted">Memuat data...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     {{-- Script datepicker dan konfirmasi delete --}}
     <script>
@@ -158,6 +195,19 @@
                     },
                     cache: true
                 }
+            });
+
+            $(document).on('click', '.btn-detail', function() {
+                let kodeTransaksi = $(this).data('id');
+                $('#modalDetail').modal('show');
+                $('#modalDetailContent').html('<p class="text-center text-muted">Memuat data...</p>');
+
+                $.get(`{{ url('detailMutasiBarangKeluar') }}/${kodeTransaksi}`, function(response) {
+                    $('#modalDetailContent').html(response);
+                }).fail(function() {
+                    $('#modalDetailContent').html(
+                        '<div class="alert alert-danger">Gagal memuat data.</div>');
+                });
             });
 
             $(document).on('click', '.deleteBarangKeluar', function(e) {
