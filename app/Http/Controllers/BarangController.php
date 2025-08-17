@@ -18,101 +18,6 @@ class BarangController extends Controller
         $data['PermissionDelete'] = Permission::getPermission('Delete Barang', Auth::user()->role_id);
         $data['PermissionTambah'] = Permission::getPermission('Tambah Barang', Auth::user()->role_id);
         $data['suppliers'] = DB::table('supplier')->where('status', '1')->orderBy('nama_supplier', 'ASC')->get();
-
-        // Jika Cetak Laporan
-        if ($request->action == 'cetak') {
-            $query = DB::table('barang')
-                ->leftJoin('supplier', 'supplier.kode_supplier', '=', 'barang.kode_supplier')
-                ->leftJoin('barang_satuan', 'barang_satuan.kode_barang', '=', 'barang.kode_barang')
-                ->select(
-                    'barang.kode_barang',
-                    'barang.kode_item',
-                    'barang.nama_barang',
-                    'barang.kategori',
-                    'barang.keterangan',
-                    'barang.stok_min',
-                    'barang.jenis',
-                    'barang.status',
-                    'supplier.nama_supplier',
-                    'barang_satuan.satuan',
-                    'barang_satuan.isi',
-                    'barang_satuan.harga_pokok',
-                    'barang_satuan.harga_jual'
-                );
-
-            // Filter Condition
-            $query->when($request->nama_barang, fn($q, $v) => $q->where('barang.nama_barang', 'like', "%$v%"));
-            $query->when($request->kode_barang, fn($q, $v) => $q->where('barang.kode_barang', 'like', "%$v%"));
-            $query->when($request->supplier, function ($q, $v) {
-                return $q->where('barang.kode_supplier', $v);
-            });
-            $query->when($request->jenis, fn($q, $v) => $q->where('barang.jenis', $v));
-            if ($request->filled('status')) {
-                $query->where('barang.status', $request->status);
-            }
-
-            $data['barang'] = $query->orderBy('barang.nama_barang')->orderBy('barang_satuan.isi')->get();
-
-            $supplierName = 'Semua Supplier';
-            if ($request->supplier) {
-                $supplier = DB::table('supplier')->where('kode_supplier', $request->supplier)->first();
-                $supplierName = $supplier ? $supplier->nama_supplier : 'Supplier Tidak Diketahui';
-            }
-            $data['nama_supplier'] = $supplierName;
-
-            return view('barang.cetakLaporanBarang', $data);
-        }
-
-        if ($request->action == 'export') {
-            $query = DB::table('barang')
-                ->leftJoin('supplier', 'supplier.kode_supplier', '=', 'barang.kode_supplier')
-                ->leftJoin('barang_satuan', 'barang_satuan.kode_barang', '=', 'barang.kode_barang')
-                ->select(
-                    'barang.kode_barang',
-                    'barang.nama_barang',
-                    'barang.kategori',
-                    'barang.keterangan',
-                    'barang.kode_item',
-                    'barang.stok_min',
-                    'barang.jenis',
-                    'barang.status',
-                    'supplier.nama_supplier',
-                    'barang_satuan.satuan',
-                    'barang_satuan.isi',
-                    'barang_satuan.harga_pokok',
-                    'barang_satuan.harga_jual'
-                );
-
-            $query->when($request->nama_barang, fn($q, $v) => $q->where('barang.nama_barang', 'like', "%$v%"));
-            $query->when($request->kode_barang, fn($q, $v) => $q->where('barang.kode_barang', 'like', "%$v%"));
-            $query->when($request->supplier, fn($q, $v) => $q->where('barang.kode_supplier', $v));
-            $query->when($request->jenis, fn($q, $v) => $q->where('barang.jenis', $v));
-            if ($request->filled('status')) {
-                $query->where('barang.status', $request->status);
-            }
-
-            $data['barang'] = $query->orderBy('barang.nama_barang')->orderBy('barang_satuan.isi')->get();
-
-            $supplierName = 'Semua Supplier';
-            if ($request->supplier) {
-                $supplier = DB::table('supplier')->where('kode_supplier', $request->supplier)->first();
-                $supplierName = $supplier ? $supplier->nama_supplier : 'Supplier Tidak Diketahui';
-            }
-            $data['nama_supplier'] = $supplierName;
-
-            // Bersihkan semua buffer sebelum kirim header
-            if (ob_get_length())
-                ob_end_clean();
-
-            header("Content-Type: application/vnd.ms-excel");
-            header("Content-Disposition: attachment; filename=Laporan_Barang.xls");
-
-            echo view('barang.cetakLaporanBarang', $data)->render();
-            exit;
-        }
-
-
-        // Jika Bukan Cetak, Query Normal (tanpa barang_satuan)
         $query = DB::table('barang')
             ->leftJoin('supplier', 'supplier.kode_supplier', '=', 'barang.kode_supplier')
             ->select('barang.*', 'supplier.nama_supplier');
@@ -422,7 +327,6 @@ class BarangController extends Controller
 
         return view('barang.hargaBarang', $data);
     }
-
     public function updateHargaBarang(Request $request)
     {
         DB::table('barang_satuan')

@@ -966,13 +966,31 @@ class PenjualanController extends Controller
             ->get();
 
         $results = $barang->map(function ($item) {
+            // Ambil semua satuan barang terkait (dari besar ke kecil)
+            $satuanList = DB::table('barang_satuan')
+                ->where('kode_barang', $item->kode_barang)
+                ->orderByDesc('isi')
+                ->get();
+
+            $qty = max(0, (float) $item->saldo_akhir);
+            $konversiText = [];
+
+            foreach ($satuanList as $satuan) {
+                $jumlah = intdiv($qty, $satuan->isi); // ambil banyaknya satuan ini
+                if ($jumlah > 0) {
+                    $konversiText[] = $jumlah . ' ' . strtoupper($satuan->satuan);
+                }
+                $qty %= $satuan->isi; // sisanya dipakai untuk satuan berikutnya
+            }
+
             return [
                 'id' => $item->kode_barang,
-                'text' => $item->nama_barang . ' (Stok: ' . number_format(max(0, (float) $item->saldo_akhir), 0) . ')',
+                'text' => $item->nama_barang . ' (Stok: ' . implode(', ', $konversiText) . ')',
                 'nama_barang' => $item->nama_barang,
                 'kategori' => $item->kategori,
                 'merk' => $item->merk,
                 'saldo_akhir' => (float) $item->saldo_akhir,
+                'stok_konversi' => implode(', ', $konversiText)
             ];
         });
 

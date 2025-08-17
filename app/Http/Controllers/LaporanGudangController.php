@@ -48,54 +48,55 @@ class LaporanGudangController extends Controller
             ->where('tahun', $request->tahun)
             ->sum('qty');
 
-        $sql ="
-            SELECT x.tanggal, x.kode_barang, x.no_faktur, x.kode_sales, x.nama_sales,
-                SUM(x.pembelian) AS pembelian,
-                SUM(x.retur_pengganti) AS retur_pengganti,
-                SUM(x.repack) AS repack,
-                SUM(x.penyesuaian_masuk) AS penyesuaian_masuk,
-                SUM(x.lainnya_masuk) AS lainnya_masuk,
-                SUM(x.penjualan) AS penjualan,
-                SUM(x.reject_gudang) AS reject_gudang,
-                SUM(x.penyesuaian_keluar) AS penyesuaian_keluar,
-                SUM(x.lainnya_keluar) AS lainnya_keluar
-            FROM (
-                -- Mutasi masuk
-                SELECT mb.tanggal, bs.kode_barang, mb.no_faktur,
-                    NULL AS kode_sales, NULL AS nama_sales,
-                    CASE WHEN mb.jenis_pemasukan = 'Pembelian' THEN mbd.qty_konversi ELSE 0 END AS pembelian,
-                    CASE WHEN mb.jenis_pemasukan = 'Retur Pengganti' THEN mbd.qty_konversi ELSE 0 END AS retur_pengganti,
-                    CASE WHEN mb.jenis_pemasukan = 'Repack' THEN mbd.qty_konversi ELSE 0 END AS repack,
-                    CASE WHEN mb.jenis_pemasukan = 'Penyesuaian' THEN mbd.qty_konversi ELSE 0 END AS penyesuaian_masuk,
-                    CASE WHEN mb.jenis_pemasukan = 'Lainnya' THEN mbd.qty_konversi ELSE 0 END AS lainnya_masuk,
-                    0 AS penjualan, 0 AS reject_gudang, 0 AS penyesuaian_keluar, 0 AS lainnya_keluar
-                FROM mutasi_barang_masuk mb
-                JOIN mutasi_barang_masuk_detail mbd ON mb.kode_transaksi = mbd.kode_transaksi
-                JOIN barang_satuan bs ON bs.id = mbd.satuan_id
-                WHERE mb.kondisi = 'gs' AND mb.tanggal BETWEEN ? AND ?
-                " . (!empty($kode_barang) ? " AND bs.kode_barang = ? " : "") . "
+        $sql = "
+        SELECT x.tanggal, x.kode_barang, x.no_faktur, x.kode_sales, x.nama_sales,
+            SUM(x.pembelian) AS pembelian,
+            SUM(x.retur_pengganti) AS retur_pengganti,
+            SUM(x.repack) AS repack,
+            SUM(x.penyesuaian_masuk) AS penyesuaian_masuk,
+            SUM(x.lainnya_masuk) AS lainnya_masuk,
+            SUM(x.penjualan) AS penjualan,
+            SUM(x.reject_gudang) AS reject_gudang,
+            SUM(x.penyesuaian_keluar) AS penyesuaian_keluar,
+            SUM(x.lainnya_keluar) AS lainnya_keluar
+        FROM (
+            -- Mutasi masuk
+            SELECT mb.tanggal, bs.kode_barang, mb.no_faktur,
+                NULL AS kode_sales, NULL AS nama_sales,
+                CASE WHEN mb.jenis_pemasukan = 'Pembelian' THEN mbd.qty_konversi ELSE 0 END AS pembelian,
+                CASE WHEN mb.jenis_pemasukan = 'Retur Pengganti' THEN mbd.qty_konversi ELSE 0 END AS retur_pengganti,
+                CASE WHEN mb.jenis_pemasukan = 'Repack' THEN mbd.qty_konversi ELSE 0 END AS repack,
+                CASE WHEN mb.jenis_pemasukan = 'Penyesuaian' THEN mbd.qty_konversi ELSE 0 END AS penyesuaian_masuk,
+                CASE WHEN mb.jenis_pemasukan = 'Lainnya' THEN mbd.qty_konversi ELSE 0 END AS lainnya_masuk,
+                0 AS penjualan, 0 AS reject_gudang, 0 AS penyesuaian_keluar, 0 AS lainnya_keluar
+            FROM mutasi_barang_masuk mb
+            JOIN mutasi_barang_masuk_detail mbd ON mb.kode_transaksi = mbd.kode_transaksi
+            JOIN barang_satuan bs ON bs.id = mbd.satuan_id
+            WHERE mb.kondisi = 'gs' AND mb.tanggal BETWEEN ? AND ?
+            " . (!empty($kode_barang) ? " AND bs.kode_barang = ? " : "") . "
 
-                UNION ALL
+            UNION ALL
 
-                -- Mutasi keluar
-                SELECT mk.tanggal, bs.kode_barang, mk.no_faktur,
-                    pj.kode_sales, k.nama_lengkap AS nama_sales,
-                    0,0,0,0,0,
-                    CASE WHEN mk.jenis_pengeluaran = 'Penjualan' THEN mkd.qty_konversi ELSE 0 END AS penjualan,
-                    CASE WHEN mk.jenis_pengeluaran = 'Reject' THEN mkd.qty_konversi ELSE 0 END AS reject_gudang,
-                    CASE WHEN mk.jenis_pengeluaran = 'Penyesuaian' THEN mkd.qty_konversi ELSE 0 END AS penyesuaian_keluar,
-                    CASE WHEN mk.jenis_pengeluaran = 'Lainnya' THEN mkd.qty_konversi ELSE 0 END AS lainnya_keluar
-                FROM mutasi_barang_keluar mk
-                JOIN mutasi_barang_keluar_detail mkd ON mk.kode_transaksi = mkd.kode_transaksi
-                JOIN barang_satuan bs ON bs.id = mkd.satuan_id
-                LEFT JOIN penjualan pj ON pj.no_faktur = mk.no_faktur
-                LEFT JOIN hrd_karyawan k ON k.nik = pj.kode_sales
-                WHERE mk.kondisi = 'gs' AND mk.tanggal BETWEEN ? AND ?
-                " . (!empty($kode_barang) ? " AND bs.kode_barang = ? " : "") . "
-            ) AS x
-            GROUP BY x.tanggal, x.kode_barang, x.no_faktur, x.kode_sales, x.nama_sales
-            ORDER BY x.tanggal ASC
-        ";
+            -- Mutasi keluar
+            SELECT mk.tanggal, bs.kode_barang, mk.no_faktur,
+                pj.kode_sales, k.nama_lengkap AS nama_sales,
+                0,0,0,0,0,
+                CASE WHEN mk.jenis_pengeluaran = 'Penjualan' THEN mkd.qty_konversi ELSE 0 END AS penjualan,
+                CASE WHEN mk.jenis_pengeluaran = 'Reject' THEN mkd.qty_konversi ELSE 0 END AS reject_gudang,
+                CASE WHEN mk.jenis_pengeluaran = 'Penyesuaian' THEN mkd.qty_konversi ELSE 0 END AS penyesuaian_keluar,
+                CASE WHEN mk.jenis_pengeluaran = 'Lainnya' THEN mkd.qty_konversi ELSE 0 END AS lainnya_keluar
+            FROM mutasi_barang_keluar mk
+            JOIN mutasi_barang_keluar_detail mkd ON mk.kode_transaksi = mkd.kode_transaksi
+            JOIN barang_satuan bs ON bs.id = mkd.satuan_id
+            LEFT JOIN penjualan pj ON pj.no_faktur = mk.no_faktur
+            LEFT JOIN hrd_karyawan k ON k.nik = pj.kode_sales
+            WHERE mk.kondisi = 'gs' AND mk.tanggal BETWEEN ? AND ?
+            " . (!empty($kode_barang) ? " AND bs.kode_barang = ? " : "") . "
+        ) AS x
+        GROUP BY x.tanggal, x.kode_barang, x.no_faktur, x.kode_sales, x.nama_sales
+        ORDER BY x.tanggal ASC
+    ";
+
         $bindings = [$tanggal_awal, $tanggal_akhir];
         if (!empty($kode_barang))
             $bindings[] = $kode_barang;
@@ -107,21 +108,37 @@ class LaporanGudangController extends Controller
         $rows = DB::select($sql, $bindings);
         $data = collect($rows);
 
-        // satuan untuk barang (dipakai kalau mau konversi)
-        $satuan_barang = DB::table('barang_satuan')
-            ->where('kode_barang', $kode_barang)
-            ->orderBy('isi', 'desc')
-            ->get()
-            ->groupBy('kode_barang');
+        // === PERBAIKAN: kirim $satuan (terkecil) & $satuan_barang (flat list, DESC by isi) ===
+        $satuan_barang = collect();
+        $satuan = 'PCS';
+
+        if (!empty($kode_barang)) {
+            // list satuan (DESC by isi) untuk konversi
+            $satuan_barang = DB::table('barang_satuan')
+                ->where('kode_barang', $kode_barang)
+                ->orderBy('isi', 'desc')
+                ->get();
+
+            // satuan default = terkecil (isi ASC)
+            $satuan = DB::table('barang_satuan')
+                ->where('kode_barang', $kode_barang)
+                ->orderBy('isi', 'asc')
+                ->value('satuan')
+                ?? DB::table('barang')->where('kode_barang', $kode_barang)->value('satuan')
+                ?? 'PCS';
+        }
+
         return view('laporan.gudang.cetakKartuStok', [
             'data' => $data,
-            'satuan_barang' => $satuan_barang,
+            'satuan_barang' => $satuan_barang, // <— flat list
+            'satuan' => $satuan,        // <— kirim ke view
             'saldoawal' => $saldoawal,
             'nama_barang' => $nama_barang,
             'tanggal_awal' => $tanggal_awal,
             'tanggal_akhir' => $tanggal_akhir,
         ]);
     }
+
 
 
     public function cetakLaporanPersediaanGS(Request $request)

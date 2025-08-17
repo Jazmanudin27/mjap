@@ -89,14 +89,13 @@
                 <th rowspan="2">Alamat</th>
                 <th rowspan="2">Sales</th>
                 <th rowspan="2">Wilayah</th>
-                <th colspan="10">Data Barang</th>
-                <th rowspan="2">Total</th>
+                <th colspan="11">Data Barang</th>
+                <th rowspan="2">Bruto</th>
                 <th rowspan="2">Diskon</th>
-                <th rowspan="2">Grand Total</th>
+                <th rowspan="2">Neto</th>
                 <th rowspan="2">Bayar</th>
                 <th rowspan="2">Sisa</th>
                 <th rowspan="2">Status</th>
-                <th rowspan="2">Wilayah</th>
                 <th rowspan="2">JT</th>
                 <th rowspan="2">Diinput</th>
                 <th rowspan="2">Update</th>
@@ -113,7 +112,6 @@
                 <th>D1</th>
                 <th>D2</th>
                 <th>D3</th>
-                {{-- <th>D4</th> --}}
                 <th>Total</th>
             </tr>
         </thead>
@@ -141,12 +139,16 @@
                     }
                 @endphp
                 @foreach ($d->detail as $i => $item)
-                    @php $batalStyle = $d->batal ? 'background-color: rgba(255,0,0,0.1); color:#a00; text-decoration: line-through;' : ''; @endphp
+                    @php
+                        $batalStyle = $d->batal
+                            ? 'background-color: rgba(255,0,0,0.1); color:#a00; text-decoration: line-through;'
+                            : '';
+                        $promoStyle = $item->is_promo == '1' ? 'background-color: #FF7F00;' : '';
+                    @endphp
                     <tr style="{{ $batalStyle }}">
                         @if ($i === 0)
                             <td class="text-center" rowspan="{{ $rowspan }}">{{ $no++ }}</td>
-                            <td class="text-center" rowspan="{{ $rowspan }}">
-                                {{ tanggal_indo($d->tanggal) }}</td>
+                            <td class="text-center" rowspan="{{ $rowspan }}">{{ tanggal_indo($d->tanggal) }}</td>
                             <td class="text-center" rowspan="{{ $rowspan }}">{{ $d->no_faktur }}</td>
                             <td class="text-center" rowspan="{{ $rowspan }}">{{ $d->kode_pelanggan }}</td>
                             <td rowspan="{{ $rowspan }}">{{ $d->nama_pelanggan }}</td>
@@ -155,13 +157,10 @@
                             <td rowspan="{{ $rowspan }}">{{ $d->nama_wilayah }}</td>
                         @endif
 
-                        @php $promoStyle = $item->is_promo == '1' ? 'background-color: #FF7F00;' : ''; @endphp
-
                         <td style="{{ $promoStyle }}">{{ $item->kode_barang }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->nama_barang }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->kategori }}</td>
                         <td style="{{ $promoStyle }}">{{ $item->merk }}</td>
-
                         <td class="text-center" style="{{ $promoStyle }}">
                             {{ $item->qty > 0 ? number_format($item->qty, 2, ',', '') : '' }}
                         </td>
@@ -178,35 +177,34 @@
                         <td class="text-center" style="{{ $promoStyle }}">
                             {{ $item->diskon3_persen > 0 ? number_format($item->diskon3_persen, 2, ',', '') : '' }}
                         </td>
-                        {{-- <td class="text-center" style="{{ $promoStyle }}">
-                            {{ $item->diskon4_persen > 0 ? number_format($item->diskon4_persen, 2, ',', '') : '' }}
-                        </td> --}}
-                        </td>
                         <td class="text-end num-format" style="{{ $promoStyle }} mso-number-format:'#,##0';">
                             {{ formatAngka($item->total) }}
                         </td>
 
                         @if ($i === 0)
                             <td class="text-end num-format" rowspan="{{ $rowspan }}"
-                                style="mso-number-format:'#,##0';">
-                                {{ formatAngka($d->total) }}
-                            </td>
+                                style="mso-number-format:'#,##0';">{{ formatAngka($d->total) }}</td>
                             <td class="text-end num-format" rowspan="{{ $rowspan }}"
-                                style="mso-number-format:'#,##0';">
-                                {{ formatAngka($d->diskon) }}
-                            </td>
+                                style="mso-number-format:'#,##0';">{{ formatAngka($d->diskon) }}</td>
                             <td class="text-end fw-bold num-format" rowspan="{{ $rowspan }}"
-                                style="mso-number-format:'#,##0';">
-                                {{ formatAngka($d->grand_total) }}
-                            </td>
+                                style="mso-number-format:'#,##0';">{{ formatAngka($d->grand_total) }}</td>
                             <td class="text-end text-success num-format" rowspan="{{ $rowspan }}"
-                                style="mso-number-format:'#,##0';">
-                                {{ formatAngka($d->sudah_bayar) }}
-                            </td>
+                                style="mso-number-format:'#,##0';">{{ formatAngka($d->sudah_bayar) }}</td>
                             <td class="text-end text-danger num-format" rowspan="{{ $rowspan }}"
-                                style="mso-number-format:'#,##0';">
-                                {{ formatAngka($d->sisa) }}
+                                style="mso-number-format:'#,##0';">{{ formatAngka($d->sisa) }}</td>
+                            <td class="text-center fw-bold" rowspan="{{ $rowspan }}"
+                                style="{{ $d->status == 'Batal' ? 'color:red;' : ($d->status == 'Lunas' ? 'color:green;' : '') }}">
+                                {{ $d->status }}
                             </td>
+                            <td class="text-center fw-bold" rowspan="{{ $rowspan }}"
+                                style="{{ $d->jenis_transaksi == 'K' ? 'color:orange;' : ($d->jenis_transaksi == 'T' ? 'color:green;' : '') }}">
+                                {{ $d->jenis_transaksi }}
+                            </td>
+                            <td class="text-center" rowspan="{{ $rowspan }}">
+                                {{ \Carbon\Carbon::parse($d->created_at)->format('d M Y H:i') }}</td>
+                            <td class="text-center" rowspan="{{ $rowspan }}">
+                                {{ \Carbon\Carbon::parse($d->updated_at)->format('d M Y H:i') }}</td>
+                            <td class="text-start" rowspan="{{ $rowspan }}">{{ $d->penginput }}</td>
                         @endif
                     </tr>
                 @endforeach
@@ -219,16 +217,11 @@
         <tfoot>
             <tr>
                 <td colspan="15" class="text-end">TOTAL</td>
-                <td class="text-end num-format" style="mso-number-format:'#,##0';">
-                    {{ formatAngka($totalAll) }}</td>
-                <td class="text-end num-format" style="mso-number-format:'#,##0';">
-                    {{ formatAngka($diskonAll) }}</td>
-                <td class="text-end num-format" style="mso-number-format:'#,##0';">
-                    {{ formatAngka($grandAll) }}</td>
-                <td class="text-end num-format" style="mso-number-format:'#,##0';">
-                    {{ formatAngka($bayarAll) }}</td>
-                <td class="text-end num-format" style="mso-number-format:'#,##0';">
-                    {{ formatAngka($sisaAll) }}</td>
+                <td class="text-end num-format" style="mso-number-format:'#,##0';">{{ formatAngka($totalAll) }}</td>
+                <td class="text-end num-format" style="mso-number-format:'#,##0';">{{ formatAngka($diskonAll) }}</td>
+                <td class="text-end num-format" style="mso-number-format:'#,##0';">{{ formatAngka($grandAll) }}</td>
+                <td class="text-end num-format" style="mso-number-format:'#,##0';">{{ formatAngka($bayarAll) }}</td>
+                <td class="text-end num-format" style="mso-number-format:'#,##0';">{{ formatAngka($sisaAll) }}</td>
                 <td colspan="4"></td>
             </tr>
             @if ($totalBatal > 0)
@@ -249,6 +242,7 @@
             @endif
         </tfoot>
     </table>
+
 
 </body>
 

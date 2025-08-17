@@ -193,6 +193,14 @@ if (!function_exists('bulan_indo')) {
 }
 
 
+if (!function_exists('getSubWilayah')) {
+    function getSubWilayah()
+    {
+        $query = DB::table('sub_wilayah');
+        return $query->orderBy('nama_wilayah')->get();
+    }
+}
+
 if (!function_exists('getWilayah')) {
     function getWilayah()
     {

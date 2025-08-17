@@ -370,7 +370,7 @@
 
         $pendingFaktur = $pendingFakturQuery->distinct('pengajuan_limit_faktur.id')->count('pengajuan_limit_faktur.id');
     @endphp
-    <nav class="bottom-nav">
+    <nav class="bottom-nav" style="zoom:95%">
         <a href="{{ route('viewDashboardSFAMobile') }}"
             class="{{ request()->routeIs('viewDashboardSFAMobile') ? 'active' : '' }}">
             <i class="bi bi-house-door-fill"></i>
@@ -380,6 +380,10 @@
             class="{{ request()->routeIs('viewPelangganMobile') ? 'active' : '' }}">
             <i class="bi bi-people-fill"></i>
             <span>Pelanggan</span>
+        </a>
+        <a href="{{ route('viewBarangMobile') }}" class="{{ request()->routeIs('viewBarangMobile') ? 'active' : '' }}">
+            <i class="bi bi-box-seam"></i>
+            <span>Barang</span>
         </a>
         <a href="{{ route('limitKreditMobile') }}"
             class="{{ request()->routeIs('limitKreditMobile') ? 'active' : '' }}">
@@ -391,7 +395,7 @@
                     </span>
                 @endif
             </div>
-            <span>Limit Kredit</span>
+            <span> Kredit</span>
         </a>
         <a href="{{ route('limitFakturMobile') }}"
             class="{{ request()->routeIs('limitFakturMobile') ? 'active' : '' }}">
@@ -411,6 +415,7 @@
             <span>Profil</span>
         </a>
     </nav>
+
     <script type="module" src="/service-worker.js"></script>
 
 </body>

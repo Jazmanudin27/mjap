@@ -25,7 +25,7 @@ class DiskonController extends Controller
         if ($request->filled('kode_barang')) {
             $query->where('diskon_strata.kode_barang', $request->kode_barang);
         }
-        $query->where('diskon_strata.kode_supplier', '');
+        $query->where('diskon_strata.kode_supplier', NULL);
         $diskon = $query->orderBy('diskon_strata.id', 'desc')->get();
 
         // ambil list supplier untuk dropdown filter

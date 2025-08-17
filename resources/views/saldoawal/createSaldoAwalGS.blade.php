@@ -18,24 +18,13 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Bulan</label>
-                            <select id="bulan" name="bulan" class="form-select2 form-select-sm">
-                                @for ($i = 1; $i <= 12; $i++)
-                                    <option value="{{ $i }}" {{ $i == date('n') ? 'selected' : '' }}>
-                                        {{ DateTime::createFromFormat('!m', $i)->format('F') }}
-                                    </option>
-                                @endfor
-                            </select>
+                        <div class="col-md-3">
+                            <label class="form-label">Nama Barang</label>
+                            <input type="text" id="filter_nama_barang" class="form-control" placeholder="Nama Barang">
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Tahun</label>
-                            <select id="tahun" name="tahun" class="form-select2 form-select-sm">
-                                @for ($y = date('Y') - 2; $y <= date('Y') + 1; $y++)
-                                    <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>
-                                        {{ $y }}</option>
-                                @endfor
-                            </select>
+                        <div class="col-md-3">
+                            <label class="form-label">Kode Barang</label>
+                            <input type="text" id="filter_kode_barang" class="form-control" placeholder="Kode Barang">
                         </div>
                     </div>
                     <form action="{{ route('storeSaldoAwalGS') }}" method="POST">
@@ -64,6 +53,8 @@
                 let kode_supplier = $('#kode_supplier').val();
                 let bulan = $('#bulan').val();
                 let tahun = $('#tahun').val();
+                let nama_barang = $('#filter_nama_barang').val();
+                let kode_barang = $('#filter_kode_barang').val();
 
                 $('#input_bulan').val(bulan);
                 $('#input_tahun').val(tahun);
@@ -76,56 +67,17 @@
                     return;
                 }
 
-                $.get(`{{ url('getBarangGSBySupplier') }}/${kode_supplier}`, function(data) {
-                    if (data.length === 0) {
-                        $('#tabel-barang').html(
-                            '<div class="alert alert-info">Tidak ada barang untuk supplier ini.</div>');
-                        return;
-                    }
-
-                    let html = `
-                    <div class="table-responsive rounded-3 border">
-                        <table class="table table-sm table-hover table-bordered align-middle mb-0">
-                            <thead class="table-primary text-center align-middle sticky-top">
-                                <tr>
-                                    <th style="width: 3%;">No.</th>
-                                    <th style="width: 10%;">Kode Barang</th>
-                                    <th>Nama Barang</th>
-                                    <th style="width: 6%;">Satuan</th>
-                                    <th style="width: 8%;">Qty</th>
-                                    <th>Keterangan</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-                    data.forEach((item, index) => {
-                        html += `
-                        <tr>
-                            <td class="text-center">${index + 1}</td>
-                            <td>
-                                <span class="fw-semibold">${item.kode_barang}</span>
-                                <input type="hidden" name="items[${index}][kode_barang]" value="${item.kode_barang}">
-                            </td>
-                            <td>${item.nama_barang}</td>
-                            <td class="text-center"><a class="btn btn-sm btn-primary fw-semibold">${item.satuan}</a></td>
-                            <td>
-                                <input type="number" name="items[${index}][qty]" class="form-control form-control-sm text-end" min="0" value="${parseFloat(item.qty)}">
-                            </td>
-                            <td>
-                                <input type="text" name="items[${index}][keterangan]" class="form-control form-control-sm">
-                            </td>
-                        </tr>`;
-                    });
-
-                    html += `
-                            </tbody>
-                        </table>
-                    </div>`;
-                    $('#tabel-barang').html(html);
-                    $('#btnSimpan').show();
+                $.get(`{{ url('getBarangGSBySupplier') }}`, {
+                    kode_supplier: kode_supplier,
+                    nama_barang: nama_barang,
+                    kode_barang: kode_barang
+                }, function(data) {
+                    // render tabel seperti biasa...
                 });
             }
 
-            $('#kode_supplier, #bulan, #tahun').on('change', loadBarang);
+            $('#kode_supplier, #bulan, #tahun, #filter_nama_barang, #filter_kode_barang').on('change keyup',
+                loadBarang);
         });
     </script>
 @endsection

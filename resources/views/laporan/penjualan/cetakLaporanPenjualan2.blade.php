@@ -98,7 +98,7 @@
                 <th>D1</th>
                 <th>D2</th>
                 <th>D3</th>
-                <th>Total Barang</th>
+                <th>Neto</th>
                 <th>Bayar</th>
                 <th>Sisa</th>
                 <th>Status</th>

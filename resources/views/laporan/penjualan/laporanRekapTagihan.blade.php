@@ -19,7 +19,7 @@
                         </div>
                         <div class="row mt-3">
                             <div class="col-md-12">
-                                <select name="wilayah" class="form-select2 form-select-sm" required>
+                                <select name="wilayah" class="form-select2 form-select-sm">
                                     <option value="">-- Pilih Wilayah --</option>
                                     @foreach ($wilayah as $w)
                                         <option value="{{ $w->kode_wilayah }}"
@@ -32,8 +32,21 @@
                         </div>
                         <div class="row mt-3">
                             <div class="col-md-12">
-                                <select name="salesman" class="form-select2 form-select-sm" required>
-                                    <option value="">-- Pilih Salesman --</option>
+                                <select name="subwilayah" class="form-select2 form-select-sm">
+                                    <option value="">-- Pilih Sub Wilayah --</option>
+                                    @foreach ($subwilayah as $w)
+                                        <option value="{{ $w->kode_wilayah }}"
+                                            {{ request('subwilayah') == $w->kode_wilayah ? 'selected' : '' }}>
+                                            {{ $w->nama_wilayah }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <select name="salesman" class="form-select2 form-select-sm">
+                                    <option value="">-- Semua Salesman --</option>
                                     @foreach ($sales as $s)
                                         <option value="{{ $s->nik }}"
                                             {{ request('salesman') == $s->nik ? 'selected' : '' }}>

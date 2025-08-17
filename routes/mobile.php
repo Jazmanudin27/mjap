@@ -40,6 +40,7 @@ Route::middleware('auth')->group(function () {
         Route::post('storePengajuanFakturMobile', 'storePengajuanFakturMobile')->name('storePengajuanFakturMobile');
         Route::get('limitKreditMobile', 'limitKreditMobile')->name('limitKreditMobile');
         Route::get('limitFakturMobile', 'limitFakturMobile')->name('limitFakturMobile');
+        Route::get('viewBarangMobile', 'viewBarangMobile')->name('viewBarangMobile');
         Route::post('approvePengajuanLimitMobile/{id}', 'approvePengajuanLimitMobile')->name('approvePengajuanLimitMobile');
         Route::post('approvePengajuanFakturMobile/{id}', 'approvePengajuanFakturMobile')->name('approvePengajuanFakturMobile');
         Route::get('getApprovalHistoryFakturMobil/{id}', 'getApprovalHistoryFakturMobil')->name('getApprovalHistoryFakturMobil');

@@ -1,8 +1,8 @@
 @extends('mobile.layout')
 @section('title', 'Input Penjualan')
 @section('header', 'Penjualan Pelanggan')
-
 @section('content')
+
     @php
         $belumLunasList = DB::table('penjualan')
             ->leftJoin(
@@ -276,6 +276,33 @@
             </div>
         </form>
     </div>
+    @if (session('error'))
+        <script>
+            $(document).ready(function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    html: `{!! addslashes(session('error')) !!}`,
+                    confirmButtonText: 'Tutup',
+                    confirmButtonColor: '#d33',
+                });
+            });
+        </script>
+    @endif
+
+    @if (session('success'))
+        <script>
+            $(document).ready(function() {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: `{!! addslashes(session('success')) !!}`,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3085d6',
+                });
+            });
+        </script>
+    @endif
     <script>
         function formatRupiah(angka) {
             let number = parseInt(angka) || 0;
@@ -641,50 +668,53 @@
                 const isi = satuan.data('isi') || 1;
 
                 if (qty <= 0) return;
+
                 const totalPcs = qty * isi;
+
                 if (totalPcs > saldoAkhirPCS) {
+                    const $jumlahInput = $('#jumlah');
                     $.get(`/getKonversiSatuan/${kode_barang}`, function(konversiSatuan) {
-
                         const stokKonversi = konversiKeSatuanBesar(saldoAkhirPCS, konversiSatuan);
-
-                        let stokTersediaHTML = '<p><strong>Stok tersedia:</strong></p><ul>';
-                        for (const [satuanName, jumlah] of Object.entries(stokKonversi)) {
-                            if (jumlah > 0) {
-                                stokTersediaHTML += `<li>${jumlah} ${satuanName}</li>`;
-                            }
-                        }
-                        stokTersediaHTML += '</ul>';
-
                         Swal.fire({
-                            title: '<h5>🚫 Stok Tidak Cukup!</h5>',
+                            title: '<h5>🚫 Stok Tidak Tersedia!</h5>',
                             icon: 'warning',
                             html: `
                                 <div style="font-size: 14px; text-align: left; margin-bottom: 10px;">
                                     <p><strong>Stok Tersedia:</strong></p>
                                     <div style="display: grid; grid-template-columns: auto auto; gap: 5px 10px;">
-                                        ${Object.entries(stokKonversi).map(([satuanName, jumlah]) => {
-                                            if (jumlah > 0) {
-                                                return `<div>${satuanName}</div><div>: ${jumlah}</div>`;
-                                            } else {
+                                        ${Object.entries(stokKonversi)
+                                            .map(([satuanName, jumlah]) => {
+                                                if (jumlah > 0) {
+                                                    return `<div>${satuanName}</div><div>: ${jumlah}</div>`;
+                                                }
                                                 return '';
-                                            }
-                                        }).join('')}
+                                            })
+                                            .join('')}
                                     </div>
                                     <hr style="margin: 10px 0;">
-                                    <p><strong>Maksimal Input:</strong>
-                                        <span style="color: red; font-weight: bold;">${Math.floor(saldoAkhirPCS / isi)} ${satuan.val()}</span>
-                                    </p>
+                                    <p><strong>Input melebihi stok yang tersedia.</strong></p>
+                                    <p style="color: red; font-weight: bold;">Input dibatalkan.</p>
                                 </div>
                             `,
-                            confirmButtonText: 'Saya Mengerti',
+                            confirmButtonText: 'Tutup',
                             customClass: {
                                 popup: 'animated tada'
                             }
+                        }).then(() => {
+                            // $jumlahInput.val("");
+                            hitungTotal();
                         });
-
-                        const maxQty = Math.floor(saldoAkhirPCS / isi);
-                        $(this).val(maxQty || '');
+                    }).fail(() => {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal memuat data satuan!',
+                            text: 'Coba lagi nanti.',
+                            confirmButtonText: 'OK'
+                        });
+                        // $jumlahInput.val("");
+                        hitungTotal();
                     });
+                    return;
                 }
 
                 hitungTotal();
@@ -1253,20 +1283,29 @@
                             type: 'POST',
                             data: $(e.target).serialize(),
                             success: function(res) {
-                                Swal.fire('Berhasil disimpan!', '', 'success');
-                                clearKeranjang();
-                                $('#formPenjualan')[0].reset();
-                                $('#kode_barang').val(null).trigger('change');
-                                console.log(keranjang);
-                                console.log(localStorage.getItem('keranjangInput'));
+                                if (res.status === 'success') {
+                                    Swal.fire('Berhasil disimpan!', '', 'success');
+                                    clearKeranjang();
+                                    $('#formPenjualan')[0].reset();
+                                    $('#kode_barang').val(null).trigger('change');
+                                } else {
+                                    Swal.fire('Gagal Disimpan!', res.message, 'error');
+                                }
                             },
                             error: function(xhr) {
-                                Swal.fire('Gagal!', xhr.responseText, 'error');
+                                let msg = 'Terjadi kesalahan.';
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    msg = xhr.responseJSON.message;
+                                } else {
+                                    msg = xhr.responseText;
+                                }
+                                Swal.fire('Gagal!', msg, 'error');
                             }
                         });
                     }
                 });
             });
+
 
             const savedNik = localStorage.getItem('selectedNik');
             if (savedNik) {

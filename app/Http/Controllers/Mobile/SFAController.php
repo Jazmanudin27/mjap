@@ -80,6 +80,80 @@ class SFAController extends Controller
         return view('mobile.dashboard.viewDashboardSFAMobile', $data);
     }
 
+    public function viewBarangMobile(Request $request)
+    {
+        $query = DB::table('barang as b')
+            ->leftJoin('supplier as s', 's.kode_supplier', '=', 'b.kode_supplier');
+
+        if ($request->filled('kode_barang')) {
+            $query->where('b.kode_barang', $request->kode_barang);
+        }
+
+        if ($request->filled('kode_supplier')) {
+            $query->where('b.kode_supplier', $request->kode_supplier);
+        }
+
+        if ($request->filled('nama_barang')) {
+            $query->where('b.nama_barang', 'like', '%' . $request->nama_barang . '%');
+        }
+
+        $barangs = $query->select(
+            'b.kode_barang',
+            'b.kode_item',
+            'b.nama_barang',
+            'b.merk',
+            'b.kategori',
+            's.nama_supplier'
+        )
+            ->where('b.status', '1')
+            ->orderBy('b.nama_barang')
+            ->limit(100)
+            ->get();
+
+        // loop barang → ambil satuan + stok
+        foreach ($barangs as $barang) {
+            // ambil daftar satuan
+            $barang->satuan_list = DB::table('barang_satuan')
+                ->where('kode_barang', $barang->kode_barang)
+                ->orderBy('isi', 'DESC')
+                ->get();
+
+            // hitung stok akhir pcs
+            $saldoPcs = $this->getSaldoAkhirBarang($barang->kode_barang);
+
+            // konversi stok ke satuan
+            $satuanList = $barang->satuan_list;
+            $sisaPcs = $saldoPcs;
+            $stokKonversi = [];
+            foreach ($satuanList as $s) {
+                $jumlahSatuan = floor($sisaPcs / $s->isi);
+                $stokKonversi[$s->satuan] = $jumlahSatuan;
+                $sisaPcs %= $s->isi;
+            }
+
+            // simpan dalam property baru
+            $barang->stok_pcs = $saldoPcs;
+            $barang->stok_konversi = $stokKonversi;
+
+            // bikin html ready (biar gampang dipanggil di blade)
+            $stokListHtml = '';
+            foreach ($stokKonversi as $satName => $satQty) {
+                if ($satQty > 0) {
+                    $stokListHtml .= "$satName: $satQty<br>";
+                }
+            }
+            $barang->stok_html = $stokListHtml ?: '-';
+        }
+
+        $data['barangs'] = $barangs;
+        $data['suppliers'] = DB::table('supplier')
+            ->where('status', '1')
+            ->orderBy('nama_supplier', 'ASC')
+            ->get();
+
+        return view('mobile.sfa.viewBarangMobile', $data);
+    }
+
     public function limitKreditMobile(Request $request)
     {
         $userTeam = Auth::user()->team;
@@ -448,14 +522,43 @@ class SFAController extends Controller
         $data['pelanggan'] = DB::table('pelanggan')->where('kode_pelanggan', $id)->first();
         return view('mobile.sfa.createPenjualanMobile', $data);
     }
+
+    private function getSaldoAkhirBarang($kodeBarang)
+    {
+        $tanggal = now();
+
+        $saldoAwal = DB::table('saldo_awal_gs')
+            ->where('kode_barang', $kodeBarang)
+            ->where('bulan', $tanggal->month)
+            ->where('tahun', $tanggal->year)
+            ->value('qty') ?? 0;
+
+        $masuk = DB::table('mutasi_barang_masuk_detail as mbd')
+            ->join('mutasi_barang_masuk as mb', 'mb.kode_transaksi', '=', 'mbd.kode_transaksi')
+            ->join('barang_satuan as bs', 'bs.id', '=', 'mbd.satuan_id')
+            ->where('mb.kondisi', 'gs')
+            ->where('mb.tanggal', '<=', $tanggal->format('Y-m-d'))
+            ->where('bs.kode_barang', $kodeBarang)
+            ->sum(DB::raw('mbd.qty_konversi'));
+
+        $keluar = DB::table('mutasi_barang_keluar_detail as mkd')
+            ->join('mutasi_barang_keluar as mk', 'mk.kode_transaksi', '=', 'mkd.kode_transaksi')
+            ->join('barang_satuan as bs', 'bs.id', '=', 'mkd.satuan_id')
+            ->where('mk.kondisi', 'gs')
+            ->where('mk.tanggal', '<=', $tanggal->format('Y-m-d'))
+            ->where('bs.kode_barang', $kodeBarang)
+            ->sum(DB::raw('mkd.qty_konversi'));
+
+        return $saldoAwal + $masuk - $keluar;
+    }
     public function storePenjualanMobile(Request $request)
     {
-        // dd($request->all());
         $keranjang = json_decode($request->keranjang, true) ?? [];
         if (empty($keranjang)) {
             return back()->with('error', 'Keranjang penjualan masih kosong!')->withInput();
         }
 
+        // --- Generate No Faktur ---
         if ($request->filled('no_faktur')) {
             $noFaktur = $request->no_faktur;
             $mode = 'edit';
@@ -473,198 +576,237 @@ class SFAController extends Controller
             $mode = 'tambah';
         }
 
+        // DB::beginTransaction();
+        // try {
+        if ($mode === 'edit') {
+            $kodeTransaksi = DB::table('mutasi_barang_keluar')
+                ->where('no_faktur', $noFaktur)
+                ->pluck('kode_transaksi');
 
-        DB::beginTransaction();
-        try {
-            if ($mode === 'edit') {
-                $kodeTransaksi = DB::table('mutasi_barang_keluar')
-                    ->where('no_faktur', $noFaktur)
-                    ->pluck('kode_transaksi');
-                if ($kodeTransaksi->isNotEmpty()) {
-                    DB::table('mutasi_barang_keluar_detail')
-                        ->whereIn('kode_transaksi', $kodeTransaksi)
-                        ->delete();
-                }
-                DB::table('mutasi_barang_keluar')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan_detail')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan_pembayaran')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan_pembayaran_transfer')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan_pembayaran_giro')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-                DB::table('penjualan')
-                    ->where('no_faktur', $noFaktur)
-                    ->delete();
-            }
-            DB::table('penjualan')->insert([
-                'no_faktur' => $noFaktur,
-                'tanggal' => Date('Y-m-d'),
-                'kode_pelanggan' => $request->kode_pelanggan,
-                'tanggal_kirim' => $request->tanggal,
-                'kode_sales' => Auth::user()->nik,
-                'jenis_transaksi' => $request->jenis_transaksi,
-                'jenis_bayar' => $request->jenis_bayar,
-                'keterangan' => $request->keterangan,
-                'id_user' => Auth::user()->nik,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $totalKotor = $totalDiskonAll = $totalBersih = 0;
-            foreach ($keranjang as $item) {
-                $qty = (float) $item['jumlah'];
-                $harga = (int) str_replace('.', '', $item['harga_jual']);
-
-                $d1 = (float) ($item['diskon1'] ?? 0);
-                $d2 = (float) ($item['diskon2'] ?? 0);
-                $d3 = (float) ($item['diskon3'] ?? 0);
-                $d4 = (float) ($item['diskon4'] ?? 0);
-
-                $hargaD = round($harga * (1 - $d1 / 100) * (1 - $d2 / 100) * (1 - $d3 / 100) * (1 - $d4 / 100));
-                $subtotal = $harga * $qty;
-                $total = $hargaD * $qty;
-                $diskon = $subtotal - $total;
-
-                DB::table('penjualan_detail')->insert([
-                    'no_faktur' => $noFaktur,
-                    'kode_barang' => $item['kode_barang'],
-                    'satuan_id' => $item['satuan_id'] ?? null,
-                    'qty' => $qty,
-                    'harga' => $harga,
-                    'subtotal' => $subtotal,
-                    'diskon1_persen' => $d1,
-                    'diskon2_persen' => $d2,
-                    'diskon3_persen' => $d3,
-                    'diskon4_persen' => $d4,
-                    'total_diskon' => $diskon,
-                    'total' => $total,
-                    'is_promo' => $item['is_promo'] ?? false,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-
-                $totalKotor += $subtotal;
-                $totalDiskonAll += $diskon;
-                $totalBersih += $total;
+            if ($kodeTransaksi->isNotEmpty()) {
+                DB::table('mutasi_barang_keluar_detail')->whereIn('kode_transaksi', $kodeTransaksi)->delete();
             }
 
-            DB::table('penjualan')->where('no_faktur', $noFaktur)->update([
-                'total' => $totalKotor,
-                'diskon' => $totalDiskonAll,
-                'grand_total' => $totalBersih,
-            ]);
-
-
-            // if ($request->jenis_bayar === 'tunai') {
-            //     DB::table('penjualan_pembayaran')->insert([
-            //         'no_bukti' => PenjualanController::generateNoBukti(), // contoh kode
-            //         'tanggal' => Date('Y-m-d'),
-            //         'no_faktur' => $noFaktur,
-            //         'kode_pelanggan' => $request->kode_pelanggan,
-            //         'kode_sales' => Auth::user()->nik,
-            //         'jenis_bayar' => 'tunai',
-            //         'jumlah' => $totalBersih,
-            //         'keterangan' => 'Pembayaran tunai dari mobile',
-            //         'id_user' => Auth::user()->nik,
-            //         'created_at' => now(),
-            //         'updated_at' => now(),
-            //     ]);
-            // } elseif ($request->jenis_bayar === 'transfer') {
-            //     DB::table('penjualan_pembayaran_transfer')->insert([
-            //         'kode_transfer' => PenjualanController::generateNoBuktiTf(),
-            //         'no_faktur' => $noFaktur,
-            //         'kode_pelanggan' => $request->kode_pelanggan,
-            //         'kode_sales' => Auth::user()->nik,
-            //         'jenis_bayar' => 'transfer',
-            //         'jumlah' => $totalBersih,
-            //         'tanggal' => $request->tanggal,
-            //         'bank_pengirim' => $request->bank_pengirim ?? 'Unknown',
-            //         'status' => 'pending', // default
-            //         'keterangan' => 'Transfer dari mobile app',
-            //         'tanggal_diterima' => null,
-            //         'id_user' => Auth::user()->nik,
-            //         'created_at' => now(),
-            //         'updated_at' => now(),
-            //     ]);
-            // }
-
-            $prefix = 'BK' . date('ym');
-            $last = DB::table('mutasi_barang_keluar')
-                ->where('kode_transaksi', 'like', "$prefix%")
-                ->orderByDesc('kode_transaksi')
-                ->value('kode_transaksi');
-
-            $lastNumber = $last ? (int) substr($last, -4) + 1 : 1;
-            $kodeTransaksi = $prefix . str_pad($lastNumber, 4, '0', STR_PAD_LEFT);
-
-            DB::table('mutasi_barang_keluar')->insert([
-                'kode_transaksi' => $kodeTransaksi,
-                'tanggal' => Date('Y-m-d'),
-                'jenis_pengeluaran' => 'penjualan',
-                'tujuan' => $request->kode_pelanggan,
-                'keterangan' => 'Penjualan',
-                'no_faktur' => $noFaktur,
-                'kode_pelanggan' => $request->kode_pelanggan,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            foreach ($keranjang as $item) {
-                $barangSatuan = DB::table('barang_satuan')
-                    ->where('id', $item['satuan_id'])
-                    ->first();
-                $konversi = $barangSatuan->isi ?? 1;
-                $qty = $item['jumlah'];
-                $qty_konversi = $qty * $konversi;
-                DB::table('mutasi_barang_keluar_detail')->insert([
-                    'kode_transaksi' => $kodeTransaksi,
-                    'satuan_id' => $item['satuan_id'] ?? null,
-                    'qty' => $qty,
-                    'konversi' => $konversi,
-                    'qty_konversi' => $qty_konversi,
-                ]);
-            }
-
-            if ($request->jenis_transaksi === 'K') {
-                $supplierTotals = [];
-
-                foreach ($keranjang as $item) {
-                    $kodeSupplier = $item['kode_supplier'] ?? null;
-                    if (!$kodeSupplier)
-                        continue;
-
-                    $supplierTotals[$kodeSupplier] = ($supplierTotals[$kodeSupplier] ?? 0) + (int) str_replace('.', '', $item['total']);
-                }
-
-                foreach ($supplierTotals as $kodeSupplier => $totalDipakai) {
-                    DB::table('pengajuan_limit_supplier')
-                        ->where('kode_supplier', $kodeSupplier)
-                        ->whereIn('pengajuan_id', function ($q) use ($request) {
-                            $q->select('id')
-                                ->from('pengajuan_limit_kredit')
-                                ->where('kode_pelanggan', $request->kode_pelanggan);
-                        })
-                        ->decrement('sisa_limit', $totalDipakai);
-                }
-            }
-            $aksi = $mode === 'edit' ? 'Update Penjualan' : 'Tambah Penjualan';
-            logActivity($aksi, "$noFaktur (Pelanggan: {$request->kode_pelanggan})");
-
-            DB::commit();
-            return redirect()->route('viewDetailPelangganMobile', $request->kode_pelanggan)->with('success', $mode === 'edit' ? 'Penjualan berhasil diperbarui.' : 'Penjualan berhasil disimpan.');
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            report($th);
-            return back()->with('error', 'Terjadi kesalahan, data gagal disimpan.')->withInput();
+            DB::table('mutasi_barang_keluar')->where('no_faktur', $noFaktur)->delete();
+            DB::table('penjualan_detail')->where('no_faktur', $noFaktur)->delete();
+            DB::table('penjualan_pembayaran')->where('no_faktur', $noFaktur)->delete();
+            DB::table('penjualan_pembayaran_transfer')->where('no_faktur', $noFaktur)->delete();
+            DB::table('penjualan_pembayaran_giro')->where('no_faktur', $noFaktur)->delete();
+            DB::table('penjualan')->where('no_faktur', $noFaktur)->delete();
         }
+
+        $stokErrors = [];
+        foreach ($keranjang as $item) {
+            $kodeBarang = $item['kode_barang'];
+            $satuanId = $item['satuan_id'] ?? null;
+            $qty = (float) ($item['jumlah'] ?? 0);
+
+            if (!$satuanId) {
+                $stokErrors[] = "Satuan barang untuk {$kodeBarang} tidak valid.";
+                continue;
+            }
+
+            $satuan = DB::table('barang_satuan')->where('id', $satuanId)->first();
+            if (!$satuan) {
+                $stokErrors[] = "Satuan untuk barang {$kodeBarang} tidak ditemukan.";
+                continue;
+            }
+
+            $konversi = $satuan->isi ?? 1;
+            $totalPcs = $qty * $konversi;
+
+            // Ambil saldo akhir per barang
+            $saldoPcs = $this->getSaldoAkhirBarang($kodeBarang);
+
+            if ($totalPcs > $saldoPcs) {
+                // Ambil semua satuan dari terbesar ke terkecil
+                $satuanList = DB::table('barang_satuan')
+                    ->where('kode_barang', $kodeBarang)
+                    ->orderByDesc('isi')
+                    ->get();
+
+                $sisaPcs = $saldoPcs;
+                $stokKonversi = [];
+                foreach ($satuanList as $s) {
+                    $jumlahSatuan = floor($sisaPcs / $s->isi);
+                    $stokKonversi[$s->satuan] = $jumlahSatuan;
+                    $sisaPcs %= $s->isi;
+                }
+
+                $barang = DB::table('barang')->where('kode_barang', $kodeBarang)->value('nama_barang');
+
+                $stokListHtml = '';
+                foreach ($stokKonversi as $satName => $satQty) {
+                    if ($satQty > 0) {
+                        $stokListHtml .= "$satName: $satQty<br>";
+                    }
+                }
+
+                $stokErrors[] = "Stok tidak mencukupi untuk <strong>{$barang}</strong> (Diperlukan: {$totalPcs} PCS)<br>Stok tersedia:<br>{$stokListHtml}";
+            }
+        }
+
+        if (!empty($stokErrors)) {
+            DB::rollBack();
+            $pesan = implode('<br><hr>', $stokErrors);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $pesan
+                ], 422);
+            }
+
+            return back()->with('error', $pesan)->withInput();
+        }
+
+        // ✅ Lanjutkan proses insert jika stok cukup
+        DB::table('penjualan')->insert([
+            'no_faktur' => $noFaktur,
+            'tanggal' => now()->format('Y-m-d'),
+            'kode_pelanggan' => $request->kode_pelanggan,
+            'tanggal_kirim' => $request->tanggal ?? now()->format('Y-m-d'),
+            'kode_sales' => Auth::user()->nik,
+            'jenis_transaksi' => $request->jenis_transaksi,
+            'jenis_bayar' => $request->jenis_bayar,
+            'keterangan' => $request->keterangan,
+            'id_user' => Auth::user()->nik,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $totalKotor = $totalDiskonAll = $totalBersih = 0;
+        foreach ($keranjang as $item) {
+            $qty = (float) $item['jumlah'];
+            $harga = (int) str_replace('.', '', $item['harga_jual']);
+
+            $d1 = (float) ($item['diskon1_persen'] ?? 0);
+            $d2 = (float) ($item['diskon2_persen'] ?? 0);
+            $d3 = (float) ($item['diskon3_persen'] ?? 0);
+            $d4 = (float) ($item['diskon4_persen'] ?? 0);
+
+            $hargaD = round($harga * (1 - $d1 / 100) * (1 - $d2 / 100) * (1 - $d3 / 100) * (1 - $d4 / 100));
+            $subtotal = $harga * $qty;
+            $total = $hargaD * $qty;
+            $diskon = $subtotal - $total;
+
+            DB::table('penjualan_detail')->insert([
+                'no_faktur' => $noFaktur,
+                'kode_barang' => $item['kode_barang'],
+                'satuan_id' => $item['satuan_id'] ?? null,
+                'qty' => $qty,
+                'harga' => $harga,
+                'subtotal' => $subtotal,
+                'diskon1_persen' => $d1,
+                'diskon2_persen' => $d2,
+                'diskon3_persen' => $d3,
+                'diskon4_persen' => $d4,
+                'total_diskon' => $diskon,
+                'total' => $total,
+                'is_promo' => $item['is_promo'] ?? false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $totalKotor += $subtotal;
+            $totalDiskonAll += $diskon;
+            $totalBersih += $total;
+        }
+
+        DB::table('penjualan')->where('no_faktur', $noFaktur)->update([
+            'total' => $totalKotor,
+            'diskon' => $totalDiskonAll,
+            'grand_total' => $totalBersih,
+        ]);
+
+        // --- Generate kode mutasi barang keluar ---
+        $prefix = 'BK' . date('ym');
+        $last = DB::table('mutasi_barang_keluar')
+            ->where('kode_transaksi', 'like', "$prefix%")
+            ->orderByDesc('kode_transaksi')
+            ->value('kode_transaksi');
+
+        $lastNumber = $last ? (int) substr($last, -4) + 1 : 1;
+        $kodeTransaksi = $prefix . str_pad($lastNumber, 4, '0', STR_PAD_LEFT);
+
+        DB::table('mutasi_barang_keluar')->insert([
+            'kode_transaksi' => $kodeTransaksi,
+            'tanggal' => now()->format('Y-m-d'),
+            'jenis_pengeluaran' => 'penjualan',
+            'tujuan' => $request->kode_pelanggan,
+            'keterangan' => 'Penjualan',
+            'no_faktur' => $noFaktur,
+            'kode_pelanggan' => $request->kode_pelanggan,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ($keranjang as $item) {
+            $barangSatuan = DB::table('barang_satuan')
+                ->where('id', $item['satuan_id'])
+                ->first();
+            $konversi = $barangSatuan->isi ?? 1;
+            $qty = $item['jumlah'];
+            $qty_konversi = $qty * $konversi;
+
+            DB::table('mutasi_barang_keluar_detail')->insert([
+                'kode_transaksi' => $kodeTransaksi,
+                'satuan_id' => $item['satuan_id'] ?? null,
+                'qty' => $qty,
+                'konversi' => $konversi,
+                'qty_konversi' => $qty_konversi,
+            ]);
+        }
+
+        if ($request->jenis_transaksi === 'K') {
+            $supplierTotals = [];
+            foreach ($keranjang as $item) {
+                $kodeSupplier = $item['kode_supplier'] ?? null;
+                if (!$kodeSupplier)
+                    continue;
+                $supplierTotals[$kodeSupplier] = ($supplierTotals[$kodeSupplier] ?? 0) + $item['total'];
+            }
+
+            foreach ($supplierTotals as $kodeSupplier => $totalDipakai) {
+                DB::table('pengajuan_limit_supplier')
+                    ->where('kode_supplier', $kodeSupplier)
+                    ->whereIn('pengajuan_id', function ($q) use ($request) {
+                        $q->select('id')
+                            ->from('pengajuan_limit_kredit')
+                            ->where('kode_pelanggan', $request->kode_pelanggan);
+                    })
+                    ->decrement('sisa_limit', $totalDipakai);
+            }
+        }
+
+        $aksi = $mode === 'edit' ? 'Update Penjualan' : 'Tambah Penjualan';
+        logActivity($aksi, "$noFaktur (Pelanggan: {$request->kode_pelanggan})");
+
+        DB::commit();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => $mode === 'edit'
+                    ? 'Penjualan berhasil diperbarui.'
+                    : 'Penjualan berhasil disimpan.'
+            ]);
+        }
+
+        return redirect()
+            ->route('viewDetailPelangganMobile', $request->kode_pelanggan)
+            ->with('success', $mode === 'edit' ? 'Penjualan berhasil diperbarui.' : 'Penjualan berhasil disimpan.');
+        // } catch (\Throwable $th) {
+        //     DB::rollBack();
+        //     \Illuminate\Support\Facades\Log::error('Error storePenjualanMobile: ' . $th->getMessage());
+        //     if ($request->ajax()) {
+        //         return response()->json([
+        //             'status' => 'error',
+        //             'message' => $th->getMessage(),
+        //         ], 422);
+        //     }
+        //     return back()->with('error', 'Terjadi kesalahan')->withInput();
+        // }
     }
 
     public function detailReturMobile($no_retur)

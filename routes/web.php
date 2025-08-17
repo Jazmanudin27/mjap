@@ -14,6 +14,7 @@ use App\Http\Controllers\KasKecilController;
 use App\Http\Controllers\LaporanGudangController;
 use App\Http\Controllers\LaporanPembelianController;
 use App\Http\Controllers\LaporanPenjualanController;
+use App\Http\Controllers\Mobile\SFAController;
 use App\Http\Controllers\MutasiBarangMasukController;
 use App\Http\Controllers\PembelianController;
 use App\Http\Controllers\PengajuanLimitFakturController;
@@ -335,4 +336,5 @@ Route::group(['middleware' => 'useradmin'], function () {
         Route::get('detailPengajuanFaktur/{id}', 'detailPengajuanFaktur')->name('detailPengajuanFaktur');
         Route::get('getApprovalHistoryFaktur/{id}', 'getApprovalHistoryFaktur')->name('getApprovalHistoryFaktur');
     });
+
 });
